@@ -1,94 +1,52 @@
 from playwright.sync_api import sync_playwright
-from datetime import datetime
-import re
-import time
+import pandas as pd
 
 class BangchakAdvancedScraperError(Exception):
     pass
 
+def get_monthly_average_advanced(year, month):
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+            page.goto("https://www.bangchak.co.th/th/oilprice/historical", timeout=60000)
 
-def _to_float(text):
-    nums = re.findall(r"\d+\.?\d*", text.replace(",", ""))
-    return float(nums[0]) if nums else None
+            page.wait_for_timeout(5000)
 
-
-def get_monthly_average_advanced(year, month, headless=True, timeout=45000):
-    """
-    ดึงราคาน้ำมัน 'ไฮดีเซล (Hi Diesel)' จาก Bangchak ด้วย Playwright
-    แล้วคำนวณค่าเฉลี่ยทั้งเดือน (บาท/ลิตร)
-
-    คืนค่า: float
-    ถ้าพัง: raise BangchakAdvancedScraperError
-    """
-
-    url = "https://www.bangchak.co.th/th/oilprice/historical"
-
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
-        page = browser.new_page()
-
-        try:
-            page.goto(url, timeout=timeout)
-            page.wait_for_load_state("networkidle")
-            time.sleep(4)  # เผื่อ JS render
-
-            # ====== จุดสำคัญ: จับตารางราคา ======
-            # จาก DOM ที่คุณส่งมา: มี <table> จริง
-            tables = page.query_selector_all("table")
-            if not tables:
-                raise BangchakAdvancedScraperError("ไม่พบตารางข้อมูล")
-
-            # ใช้ตารางแรกเป็นหลัก (ถ้ามีหลายตาราง จะ fine-tune ต่อได้)
-            table = tables[0]
-
-            rows = table.query_selector_all("tbody tr")
+            rows = page.query_selector_all("table tbody tr")
             if not rows:
-                raise BangchakAdvancedScraperError("ไม่พบแถวข้อมูลในตาราง")
+                raise BangchakAdvancedScraperError("ไม่พบแถวข้อมูล")
 
-            prices = []
+            data = []
 
             for r in rows:
                 cols = r.query_selector_all("td")
                 if len(cols) < 3:
                     continue
 
-                # โครงสร้างที่พบบ่อย:
-                # col[0] = วันที่
-                # col[1] = ไฮพรีเมียม
-                # col[2] = ไฮดีเซล (Hi Diesel)  ← เป้าหมายเรา
                 date_text = cols[0].inner_text().strip()
-                hi_diesel_text = cols[2].inner_text().strip()
+                price_text = cols[2].inner_text().strip()
 
                 try:
-                    # วันที่เว็บไทยมักเป็น พ.ศ. เช่น 09/01/2569
-                    # แปลง พ.ศ. → ค.ศ.
-                    d = datetime.strptime(date_text, "%d/%m/%Y")
+                    price = float(price_text.replace(",", ""))
                 except:
-                    # ถ้าเป็น พ.ศ. (เช่น 2569) ให้ลบ 543
-                    try:
-                        parts = date_text.split("/")
-                        if len(parts) == 3:
-                            d = datetime(int(parts[2]) - 543, int(parts[1]), int(parts[0]))
-                        else:
-                            continue
-                    except:
-                        continue
+                    continue
 
-                if d.year == year and d.month == month:
-                    price = _to_float(hi_diesel_text)
-                    if price is not None:
-                        prices.append(price)
+                data.append({"date": date_text, "price": price})
 
-            if not prices:
-                raise BangchakAdvancedScraperError(
-                    f"ไม่พบข้อมูลไฮดีเซลสำหรับ {month}/{year}"
-                )
-
-            avg = round(sum(prices) / len(prices), 2)
-            return avg
-
-        except Exception as e:
-            raise BangchakAdvancedScraperError(str(e))
-
-        finally:
             browser.close()
+
+        df = pd.DataFrame(data)
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna()
+        df["year"] = df["date"].dt.year
+        df["month"] = df["date"].dt.month
+
+        filtered = df[(df["year"] == year) & (df["month"] == month)]
+        if len(filtered) == 0:
+            raise BangchakAdvancedScraperError("ไม่พบข้อมูลเดือนนี้")
+
+        return round(filtered["price"].mean(), 2)
+
+    except Exception as e:
+        raise BangchakAdvancedScraperError(str(e))
