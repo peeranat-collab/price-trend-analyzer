@@ -513,7 +513,7 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
 
     # ====== แสดงผลลัพธ์ ======
     if "diesel_fetch_result" in st.session_state:
-    result = st.session_state["diesel_fetch_result"]
+        result = st.session_state["diesel_fetch_result"]
 
         if isinstance(result, dict) and result.get("status") == "fallback":
             st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
