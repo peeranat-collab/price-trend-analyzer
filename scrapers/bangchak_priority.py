@@ -1,5 +1,9 @@
-from scrapers.bangchak_diesel_advanced import get_monthly_average_advanced, BangchakAdvancedScraperError
+from scrapers.bangchak_diesel_advanced import (
+    get_monthly_average_advanced,
+    BangchakAdvancedScraperError
+)
 from scrapers.bangchak_diesel_basic import get_monthly_average_basic
+
 
 def get_diesel_price_with_priority(year, month):
     # 1) Try Advanced
