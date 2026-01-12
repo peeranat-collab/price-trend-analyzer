@@ -507,4 +507,62 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
 
             st.session_state["diesel_auto_price"] = result
+            st.markdown("---")
+
+        # ปุ่มบันทึกข้อมูล
+        if "diesel_fetch_result" in st.session_state:
+            if st.button("💾 บันทึกเข้าระบบ"):
+                month = st.session_state.get("diesel_month")
+                year = st.session_state.get("diesel_year")
+
+                # เลือกราคาอัตโนมัติ หรือ fallback
+                if "diesel_auto_price" in st.session_state:
+                    final_price = st.session_state["diesel_auto_price"]
+                else:
+                    final_price = st.session_state.get("diesel_manual_price")
+
+                if final_price is None or final_price <= 0:
+                    st.error("กรุณาระบุราคาดีเซลที่ถูกต้อง")
+                else:
+                    new_rows = []
+
+                    for product in products:  # ผูกกับทุกสินค้า
+                        new_rows.append({
+                            "สินค้า": product,
+                            "เดือน": month,
+                            "ปี": year,
+                            "วัสดุ": "ค่าขนส่ง (น้ำมันดีเซล)",
+                            "ราคา/หน่วย": final_price,
+                            "ปริมาณ": 1,
+                            "ต้นทุน": final_price,
+                            "overhead_percent": 0,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+                    new_df = pd.DataFrame(new_rows)
+
+                    # โหลดข้อมูลเดิม
+                    old_df = load_data()
+
+                    # ลบข้อมูลซ้ำ (เดือน/ปี/วัสดุ/สินค้าเดียวกัน)
+                    if len(old_df) > 0:
+                        old_df = old_df[
+                            ~(
+                                (old_df["วัสดุ"] == "ค่าขนส่ง (น้ำมันดีเซล)") &
+                                (old_df["เดือน"] == month) &
+                                (old_df["ปี"] == year)
+                            )
+                        ]
+
+                    final_df = pd.concat([old_df, new_df], ignore_index=True)
+                    save_data(final_df)
+
+                    # ล้าง session
+                    for k in ["diesel_fetch_result", "diesel_auto_price", "diesel_manual_price"]:
+                        if k in st.session_state:
+                            del st.session_state[k]
+
+                    st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
+                    st.experimental_rerun()
+
 
