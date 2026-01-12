@@ -1,18 +1,22 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
+import os
 
 st.set_page_config(page_title="วิเคราะห์แนวโน้มราคา", layout="wide")
 
-# -----------------------
-# ค่าเริ่มต้น
-# -----------------------
+# =========================
+# ตั้งค่า
+# =========================
+DATA_FILE = "data.csv"
+
 products = [
     "กระเป๋า Delivery ใบเล็ก",
     "กระเป๋า Delivery ใบใหญ่",
     "แจ็คเก็ต Delivery"
 ]
 
-materials = [
+materials_base = [
     "เม็ดพลาสติก",
     "ผ้าคัทตอน",
     "เหล็ก",
@@ -20,141 +24,149 @@ materials = [
     "ค่าขนส่ง"
 ]
 
-if "data" not in st.session_state:
-    st.session_state.data = []
+# =========================
+# Utility Functions
+# =========================
+def load_data():
+    if os.path.exists(DATA_FILE):
+        return pd.read_csv(DATA_FILE)
+    else:
+        return pd.DataFrame(columns=[
+            "สินค้า", "เดือน", "ปี", "วัสดุ",
+            "ราคา/หน่วย", "ปริมาณ", "ต้นทุน",
+            "overhead_percent", "timestamp"
+        ])
 
-# -----------------------
+def save_data(df):
+    df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
+
+# โหลดข้อมูล
+df_data = load_data()
+
+# =========================
 # Sidebar
-# -----------------------
+# =========================
 st.sidebar.title("📊 เมนู")
+menu = st.sidebar.radio("เลือกเมนู", [
+    "Dashboard",
+    "กรอกข้อมูลต้นทุน",
+    "ตารางข้อมูล",
+    "Export"
+])
 
-menu = st.sidebar.radio(
-    "เลือกเมนู",
-    [
-        "Dashboard",
-        "กรอกข้อมูลต้นทุน",
-        "ตารางข้อมูล",
-        "Export"
-    ]
-)
-
-# -----------------------
+# =========================
 # Dashboard
-# -----------------------
+# =========================
 if menu == "Dashboard":
     st.title("📊 Dashboard")
 
-    if len(st.session_state.data) == 0:
+    if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล กรุณากรอกข้อมูลก่อน")
     else:
-        df = pd.DataFrame(st.session_state.data)
-
         st.subheader("ข้อมูลล่าสุด")
-        st.dataframe(df.tail(5), use_container_width=True)
+        st.dataframe(df_data.tail(10), use_container_width=True)
 
         st.subheader("ต้นทุนรวมตามสินค้า")
-        summary = df.groupby("สินค้า")["ต้นทุนรวม"].sum()
+        summary = df_data.groupby("สินค้า")["ต้นทุน"].sum()
         st.bar_chart(summary)
 
-# -----------------------
+# =========================
 # กรอกข้อมูล
-# -----------------------
+# =========================
 elif menu == "กรอกข้อมูลต้นทุน":
-    st.title("➕ กรอกข้อมูลต้นทุน")
+    st.title("➕ กรอกข้อมูลต้นทุน (ละเอียดระดับวัสดุ)")
 
     col1, col2, col3 = st.columns(3)
-
     with col1:
         product = st.selectbox("เลือกสินค้า", products)
-
     with col2:
         month = st.selectbox("เดือน", list(range(1, 13)))
-
     with col3:
         year = st.selectbox("ปี", list(range(2023, 2031)))
 
     st.subheader("เลือกวัสดุที่ใช้")
-
     selected_materials = st.multiselect(
         "เลือกวัสดุ",
-        materials + ["วัสดุอื่นๆ"]
+        materials_base + ["วัสดุอื่นๆ"]
     )
 
-    total_cost = 0
-    detail = []
+    overhead_percent = st.number_input("Overhead (%)", min_value=0.0, step=1.0)
+
+    material_rows = []
+
+    st.markdown("---")
 
     for mat in selected_materials:
         st.markdown(f"### {mat}")
         c1, c2 = st.columns(2)
         with c1:
-            price = st.number_input(f"ราคา {mat}", min_value=0.0, step=1.0, key=f"p_{mat}")
+            price = st.number_input(f"ราคา/หน่วย ({mat})", min_value=0.0, step=1.0, key=f"p_{mat}")
         with c2:
-            qty = st.number_input(f"ปริมาณที่ใช้ {mat}", min_value=0.0, step=0.1, key=f"q_{mat}")
+            qty = st.number_input(f"ปริมาณที่ใช้ ({mat})", min_value=0.0, step=0.1, key=f"q_{mat}")
 
         cost = price * qty
-        total_cost += cost
-        detail.append(f"{mat}: {price} x {qty} = {cost}")
 
-    overhead_percent = st.number_input("Overhead (%)", min_value=0.0, step=1.0)
-    overhead_value = total_cost * (overhead_percent / 100)
-
-    final_cost = total_cost + overhead_value
-
-    st.markdown("---")
-    st.subheader("สรุปต้นทุน")
-
-    st.write("รายละเอียด:")
-    for d in detail:
-        st.write("-", d)
-
-    st.write(f"ต้นทุนรวมวัสดุ: {total_cost:.2f}")
-    st.write(f"Overhead: {overhead_value:.2f}")
-    st.success(f"ต้นทุนรวมต่อชิ้น = {final_cost:.2f} บาท")
-
-    if st.button("บันทึกข้อมูล"):
-        st.session_state.data.append({
+        material_rows.append({
             "สินค้า": product,
             "เดือน": month,
             "ปี": year,
-            "ต้นทุนรวม": final_cost
+            "วัสดุ": mat,
+            "ราคา/หน่วย": price,
+            "ปริมาณ": qty,
+            "ต้นทุน": cost,
+            "overhead_percent": overhead_percent,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
-        st.success("บันทึกข้อมูลเรียบร้อยแล้ว 🎉")
 
-# -----------------------
+    if len(material_rows) > 0:
+        df_preview = pd.DataFrame(material_rows)
+        base_total = df_preview["ต้นทุน"].sum()
+        overhead_value = base_total * (overhead_percent / 100)
+        final_total = base_total + overhead_value
+
+        st.markdown("---")
+        st.subheader("สรุป")
+        st.write(f"ต้นทุนรวมวัสดุ: {base_total:.2f} บาท")
+        st.write(f"Overhead: {overhead_value:.2f} บาท")
+        st.success(f"ต้นทุนรวมต่อสินค้า = {final_total:.2f} บาท")
+
+        if st.button("บันทึกข้อมูล"):
+            new_df = pd.DataFrame(material_rows)
+            df_all = pd.concat([df_data, new_df], ignore_index=True)
+            save_data(df_all)
+            st.success("บันทึกข้อมูลเรียบร้อยแล้ว 🎉")
+            st.experimental_rerun()
+
+# =========================
 # ตารางข้อมูล
-# -----------------------
+# =========================
 elif menu == "ตารางข้อมูล":
     st.title("📋 ตารางข้อมูล")
 
-    if len(st.session_state.data) == 0:
+    if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
-        df = pd.DataFrame(st.session_state.data)
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df_data, use_container_width=True)
 
-        st.subheader("กราฟแนวโน้ม")
-        pivot = df.pivot_table(
-            index=["ปี", "เดือน"],
-            columns="สินค้า",
-            values="ต้นทุนรวม",
-            aggfunc="sum"
-        )
-        st.line_chart(pivot)
+        st.subheader("แนวโน้มต้นทุนรวม (ต่อสินค้า)")
+        pivot = df_data.groupby(["ปี", "เดือน", "สินค้า"])["ต้นทุน"].sum().reset_index()
+        pivot["เวลา"] = pivot["ปี"].astype(str) + "-" + pivot["เดือน"].astype(str)
 
-# -----------------------
+        chart_df = pivot.pivot(index="เวลา", columns="สินค้า", values="ต้นทุน")
+        st.line_chart(chart_df)
+
+# =========================
 # Export
-# -----------------------
+# =========================
 elif menu == "Export":
     st.title("📤 Export ข้อมูล")
 
-    if len(st.session_state.data) == 0:
+    if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูลให้ export")
     else:
-        df = pd.DataFrame(st.session_state.data)
-
         st.download_button(
-            "ดาวน์โหลดเป็น Excel",
-            data=df.to_csv(index=False).encode("utf-8-sig"),
+            "ดาวน์โหลดเป็น CSV (เปิดใน Excel ได้)",
+            data=df_data.to_csv(index=False).encode("utf-8-sig"),
             file_name="cost_data.csv",
             mime="text/csv"
         )
