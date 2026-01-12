@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 
 DATA_FILE = "data.csv"
+LOG_FILE = "auto/auto_log.txt"
 
 products = [
     "กระเป๋า Delivery ใบเล็ก",
@@ -24,6 +25,11 @@ def load_data():
 def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
 
+def log(msg):
+    os.makedirs("auto", exist_ok=True)
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now()} - {msg}\n")
+
 def main():
     today = datetime.today()
     year = today.year
@@ -31,9 +37,11 @@ def main():
 
     result = get_monthly_average(year, month)
 
+    # === Fallback Mode (A + D) ===
     if isinstance(result, dict):
-        print("Fallback mode:", result)
-        return
+        log(f"FAILED: {result.get('reason')}")
+        print("Auto mode fallback:", result)
+        return  # ข้ามเดือนนี้
 
     price = result
 
@@ -68,6 +76,7 @@ def main():
     final_df = pd.concat([old_df, new_df], ignore_index=True)
     save_data(final_df)
 
+    log(f"SUCCESS: Diesel price = {price}")
     print("Auto update completed:", price)
 
 if __name__ == "__main__":
