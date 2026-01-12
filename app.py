@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import os
+import numpy as np
+from sklearn.linear_model import LinearRegression
 
 st.set_page_config(page_title="วิเคราะห์แนวโน้มราคา", layout="wide")
 
@@ -53,6 +55,18 @@ def yoy_compare(df, selected_month, selected_year):
 
     return result.reset_index()
 
+def linear_forecast(series, periods=3):
+    y = series.values.reshape(-1, 1)
+    X = np.arange(len(y)).reshape(-1, 1)
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    future_X = np.arange(len(y) + periods).reshape(-1, 1)
+    forecast = model.predict(future_X)
+
+    return forecast.flatten()
+
 df_data = load_data()
 
 st.sidebar.title("📊 เมนู")
@@ -64,6 +78,7 @@ menu = st.sidebar.radio(
         "ตารางข้อมูล",
         "วิเคราะห์แนวโน้ม",
         "คำแนะนำการจัดซื้อ",
+        "พยากรณ์ราคา",
         "Export"
     ]
 )
@@ -259,6 +274,52 @@ elif menu == "คำแนะนำการจัดซื้อ":
                 st.write(f"- {mat} เพิ่มขึ้น {pct:.2f}%")
             elif pct < 0:
                 st.write(f"- {mat} ลดลง {abs(pct):.2f}%")
+
+# ---------------- Forecast ----------------
+elif menu == "พยากรณ์ราคา":
+    st.title("🔮 พยากรณ์ราคา (Linear Regression)")
+
+    if len(df_data) == 0:
+        st.info("ยังไม่มีข้อมูล")
+    else:
+        material = st.selectbox("เลือกวัสดุ", sorted(df_data["วัสดุ"].unique()))
+        periods = st.selectbox("พยากรณ์ล่วงหน้า (เดือน)", [3, 6, 12])
+
+        mat_df = df_data[df_data["วัสดุ"] == material]
+        mat_df = mat_df.groupby(["ปี", "เดือน"])["ต้นทุน"].sum().reset_index()
+        mat_df["time_index"] = range(len(mat_df))
+
+        if len(mat_df) < 3:
+            st.warning("ข้อมูลน้อยเกินไปสำหรับการพยากรณ์")
+        else:
+            forecast_values = linear_forecast(mat_df["ต้นทุน"], periods)
+
+            hist = forecast_values[:len(mat_df)]
+            future = forecast_values[len(mat_df):]
+
+            hist_df = pd.DataFrame({
+                "งวด": mat_df["time_index"],
+                "ต้นทุน": hist
+            })
+
+            future_df = pd.DataFrame({
+                "งวด": range(len(mat_df), len(mat_df) + periods),
+                "ต้นทุน": future
+            })
+
+            st.subheader("กราฟย้อนหลัง + พยากรณ์")
+            chart_df = pd.concat([hist_df, future_df])
+            chart_df = chart_df.set_index("งวด")
+
+            st.line_chart(chart_df)
+
+            change_pct = ((future[-1] - hist[-1]) / hist[-1]) * 100
+
+            st.subheader("สรุปการพยากรณ์")
+            if change_pct > 0:
+                st.write(f"คาดว่าราคาจะเพิ่มขึ้นประมาณ {change_pct:.2f}% ใน {periods} เดือน")
+            else:
+                st.write(f"คาดว่าราคาจะลดลงประมาณ {abs(change_pct):.2f}% ใน {periods} เดือน")
 
 # ---------------- Export ----------------
 elif menu == "Export":
