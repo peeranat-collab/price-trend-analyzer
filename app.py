@@ -472,9 +472,14 @@ elif menu == "Export":
             file_name="cost_data.csv",
             mime="text/csv"
         )
+
+# =========================
+# 🔄 อัปเดตราคาน้ำมัน (ดีเซล)
+# =========================
 elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเซล)":
     st.title("🔄 อัปเดตราคาน้ำมันดีเซล (Bangchak)")
 
+    # ====== แสดงสถานะ Auto ล่าสุด ======
     log_file = "auto/auto_log.txt"
 
     if os.path.exists(log_file):
@@ -490,95 +495,97 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             else:
                 st.info(l.strip())
 
+    st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
 
-        st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
+    col1, col2 = st.columns(2)
+    with col1:
+        sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
+    with col2:
+        sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
 
-        col1, col2 = st.columns(2)
-        with col1:
-            sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
-        with col2:
-            sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
+    if st.button("ดึงข้อมูลจาก Bangchak"):
+        result = get_monthly_average(sel_year, sel_month)
 
-        if st.button("ดึงข้อมูลจาก Bangchak"):
-            result = get_monthly_average(sel_year, sel_month)
+        st.session_state["diesel_fetch_result"] = result
+        st.session_state["diesel_month"] = sel_month
+        st.session_state["diesel_year"] = sel_year
 
-            st.session_state["diesel_fetch_result"] = result
-            st.session_state["diesel_month"] = sel_month
-            st.session_state["diesel_year"] = sel_year
+    # ====== แสดงผลลัพธ์ ======
+    if "diesel_fetch_result" in st.session_state:
+        result = st.session_state["diesel_fetch_result"]
 
-        if "diesel_fetch_result" in st.session_state:
-            result = st.session_state["diesel_fetch_result"]
+        if isinstance(result, dict) and result.get("status") == "fallback":
+            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+            st.write("เหตุผล:", result.get("reason"))
 
-            if isinstance(result, dict) and result.get("status") == "fallback":
-                st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
-                st.write("เหตุผล:", result.get("reason"))
+            st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
+            manual_price = st.number_input(
+                "ราคาดีเซลเฉลี่ย (บาท/ลิตร)",
+                min_value=0.0,
+                step=0.1
+            )
 
-                st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
-                manual_price = st.number_input("ราคาดีเซลเฉลี่ย (บาท/ลิตร)", min_value=0.0, step=0.1)
+            st.session_state["diesel_manual_price"] = manual_price
 
-                st.session_state["diesel_manual_price"] = manual_price
+        else:
+            st.success("✅ ดึงข้อมูลสำเร็จ")
+            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+            st.session_state["diesel_auto_price"] = result
 
+    # ====== ปุ่มบันทึก ======
+    st.markdown("---")
+
+    if "diesel_fetch_result" in st.session_state:
+        if st.button("💾 บันทึกเข้าระบบ"):
+            month = st.session_state.get("diesel_month")
+            year = st.session_state.get("diesel_year")
+
+            # เลือกราคาจาก auto หรือ manual
+            if "diesel_auto_price" in st.session_state:
+                final_price = st.session_state["diesel_auto_price"]
             else:
-                st.success("✅ ดึงข้อมูลสำเร็จ")
-                st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+                final_price = st.session_state.get("diesel_manual_price")
 
-                st.session_state["diesel_auto_price"] = result
-                st.markdown("---")
+            if final_price is None or final_price <= 0:
+                st.error("กรุณาระบุราคาดีเซลที่ถูกต้อง")
+            else:
+                new_rows = []
 
-        # ปุ่มบันทึกข้อมูล
-        if "diesel_fetch_result" in st.session_state:
-            if st.button("💾 บันทึกเข้าระบบ"):
-                month = st.session_state.get("diesel_month")
-                year = st.session_state.get("diesel_year")
+                for product in products:  # ใช้ list สินค้าของคุณ
+                    new_rows.append({
+                        "สินค้า": product,
+                        "เดือน": month,
+                        "ปี": year,
+                        "วัสดุ": "ค่าขนส่ง (น้ำมันดีเซล)",
+                        "ราคา/หน่วย": final_price,
+                        "ปริมาณ": 1,
+                        "ต้นทุน": final_price,
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
 
-                # เลือกราคาอัตโนมัติ หรือ fallback
-                if "diesel_auto_price" in st.session_state:
-                    final_price = st.session_state["diesel_auto_price"]
-                else:
-                    final_price = st.session_state.get("diesel_manual_price")
+                new_df = pd.DataFrame(new_rows)
+                old_df = load_data()
 
-                if final_price is None or final_price <= 0:
-                    st.error("กรุณาระบุราคาดีเซลที่ถูกต้อง")
-                else:
-                    new_rows = []
+                # ลบข้อมูลซ้ำ
+                if len(old_df) > 0:
+                    old_df = old_df[
+                        ~(
+                            (old_df["วัสดุ"] == "ค่าขนส่ง (น้ำมันดีเซล)") &
+                            (old_df["เดือน"] == month) &
+                            (old_df["ปี"] == year)
+                        )
+                    ]
 
-                    for product in products:  # ผูกกับทุกสินค้า
-                        new_rows.append({
-                            "สินค้า": product,
-                            "เดือน": month,
-                            "ปี": year,
-                            "วัสดุ": "ค่าขนส่ง (น้ำมันดีเซล)",
-                            "ราคา/หน่วย": final_price,
-                            "ปริมาณ": 1,
-                            "ต้นทุน": final_price,
-                            "overhead_percent": 0,
-                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        })
+                final_df = pd.concat([old_df, new_df], ignore_index=True)
+                save_data(final_df)
 
-                    new_df = pd.DataFrame(new_rows)
+                # ล้าง session
+                for k in ["diesel_fetch_result", "diesel_auto_price", "diesel_manual_price"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
-                    # โหลดข้อมูลเดิม
-                    old_df = load_data()
-
-                    # ลบข้อมูลซ้ำ (เดือน/ปี/วัสดุ/สินค้าเดียวกัน)
-                    if len(old_df) > 0:
-                        old_df = old_df[
-                            ~(
-                                (old_df["วัสดุ"] == "ค่าขนส่ง (น้ำมันดีเซล)") &
-                                (old_df["เดือน"] == month) &
-                                (old_df["ปี"] == year)
-                            )
-                        ]
-
-                    final_df = pd.concat([old_df, new_df], ignore_index=True)
-                    save_data(final_df)
-
-                    # ล้าง session
-                    for k in ["diesel_fetch_result", "diesel_auto_price", "diesel_manual_price"]:
-                        if k in st.session_state:
-                            del st.session_state[k]
-
-                    st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
-                    st.experimental_rerun()
+                st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
+                st.experimental_rerun()
 
 
