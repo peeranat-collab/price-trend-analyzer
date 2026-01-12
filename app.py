@@ -513,9 +513,9 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
 
     # ====== แสดงผลลัพธ์ ======
     if "diesel_fetch_result" in st.session_state:
-        result = st.session_state["diesel_fetch_result"]
+    result = st.session_state["diesel_fetch_result"]
 
-        if result["status"] == "manual":
+        if isinstance(result, dict) and result.get("status") == "fallback":
             st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
             st.write("เหตุผล:", result.get("reason"))
 
@@ -529,9 +529,10 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             st.session_state["diesel_manual_price"] = manual_price
 
         else:
-            st.success(f"✅ ดึงข้อมูลสำเร็จ ({result['status']})")
-            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result['value']} บาท/ลิตร")
-            st.session_state["diesel_auto_price"] = result["value"]
+            st.success("✅ ดึงข้อมูลสำเร็จ")
+            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+            st.session_state["diesel_auto_price"] = result
+
 
     # ====== ปุ่มบันทึก ======
     st.markdown("---")
