@@ -475,39 +475,55 @@ elif menu == "Export":
 elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเซล)":
     st.title("🔄 อัปเดตราคาน้ำมันดีเซล (Bangchak)")
 
-    st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
+    log_file = "auto/auto_log.txt"
 
-    col1, col2 = st.columns(2)
-    with col1:
-        sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
-    with col2:
-        sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
+    if os.path.exists(log_file):
+        with open(log_file, "r", encoding="utf-8") as f:
+            logs = f.readlines()[-5:]
 
-    if st.button("ดึงข้อมูลจาก Bangchak"):
-        result = get_monthly_average(sel_year, sel_month)
+        st.subheader("📜 สถานะ Auto ล่าสุด")
+        for l in logs:
+            if "FAILED" in l:
+                st.error(l.strip())
+            elif "SUCCESS" in l:
+                st.success(l.strip())
+            else:
+                st.info(l.strip())
 
-        st.session_state["diesel_fetch_result"] = result
-        st.session_state["diesel_month"] = sel_month
-        st.session_state["diesel_year"] = sel_year
 
-    if "diesel_fetch_result" in st.session_state:
-        result = st.session_state["diesel_fetch_result"]
+        st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
 
-        if isinstance(result, dict) and result.get("status") == "fallback":
-            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
-            st.write("เหตุผล:", result.get("reason"))
+        col1, col2 = st.columns(2)
+        with col1:
+            sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
+        with col2:
+            sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
 
-            st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
-            manual_price = st.number_input("ราคาดีเซลเฉลี่ย (บาท/ลิตร)", min_value=0.0, step=0.1)
+        if st.button("ดึงข้อมูลจาก Bangchak"):
+            result = get_monthly_average(sel_year, sel_month)
 
-            st.session_state["diesel_manual_price"] = manual_price
+            st.session_state["diesel_fetch_result"] = result
+            st.session_state["diesel_month"] = sel_month
+            st.session_state["diesel_year"] = sel_year
 
-        else:
-            st.success("✅ ดึงข้อมูลสำเร็จ")
-            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+        if "diesel_fetch_result" in st.session_state:
+            result = st.session_state["diesel_fetch_result"]
 
-            st.session_state["diesel_auto_price"] = result
-            st.markdown("---")
+            if isinstance(result, dict) and result.get("status") == "fallback":
+                st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+                st.write("เหตุผล:", result.get("reason"))
+
+                st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
+                manual_price = st.number_input("ราคาดีเซลเฉลี่ย (บาท/ลิตร)", min_value=0.0, step=0.1)
+
+                st.session_state["diesel_manual_price"] = manual_price
+
+            else:
+                st.success("✅ ดึงข้อมูลสำเร็จ")
+                st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+
+                st.session_state["diesel_auto_price"] = result
+                st.markdown("---")
 
         # ปุ่มบันทึกข้อมูล
         if "diesel_fetch_result" in st.session_state:
