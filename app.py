@@ -4,6 +4,8 @@ from datetime import datetime
 import os
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from scrapers.bangchak_diesel import get_monthly_average
+
 
 # PDF
 from reportlab.lib.pagesizes import A4
@@ -215,6 +217,7 @@ menu = st.sidebar.radio(
         "คำแนะนำการจัดซื้อ",
         "พยากรณ์ราคา",
         "รายงาน PDF (Corporate)",
+        "🔄 อัปเดตราคาน้ำมัน (ดีเซล)",
         "Export"
     ]
 )
@@ -469,3 +472,39 @@ elif menu == "Export":
             file_name="cost_data.csv",
             mime="text/csv"
         )
+elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเซล)":
+    st.title("🔄 อัปเดตราคาน้ำมันดีเซล (Bangchak)")
+
+    st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
+    with col2:
+        sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
+
+    if st.button("ดึงข้อมูลจาก Bangchak"):
+        result = get_monthly_average(sel_year, sel_month)
+
+        st.session_state["diesel_fetch_result"] = result
+        st.session_state["diesel_month"] = sel_month
+        st.session_state["diesel_year"] = sel_year
+
+    if "diesel_fetch_result" in st.session_state:
+        result = st.session_state["diesel_fetch_result"]
+
+        if isinstance(result, dict) and result.get("status") == "fallback":
+            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+            st.write("เหตุผล:", result.get("reason"))
+
+            st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
+            manual_price = st.number_input("ราคาดีเซลเฉลี่ย (บาท/ลิตร)", min_value=0.0, step=0.1)
+
+            st.session_state["diesel_manual_price"] = manual_price
+
+        else:
+            st.success("✅ ดึงข้อมูลสำเร็จ")
+            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
+
+            st.session_state["diesel_auto_price"] = result
+
