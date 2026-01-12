@@ -6,3 +6,4 @@ matplotlib
 reportlab
 beautifulsoup4
 lxml
+requests
