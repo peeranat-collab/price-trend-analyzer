@@ -30,6 +30,6 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
-          git add data.csv
-          git commit -m "Auto update diesel price"
+          git add data.csv auto/auto_log.txt
+          git commit -m "Auto update diesel price" || echo "No changes to commit"
           git push
