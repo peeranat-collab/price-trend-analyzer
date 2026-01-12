@@ -4,7 +4,8 @@ from datetime import datetime
 import os
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from scrapers.bangchak_diesel import get_monthly_average
+from scrapers.bangchak_priority import get_diesel_price_with_priority
+
 
 
 # PDF
@@ -504,7 +505,7 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
         sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
 
     if st.button("ดึงข้อมูลจาก Bangchak"):
-        result = get_monthly_average(sel_year, sel_month)
+        result = get_diesel_price_with_priority(sel_year, sel_month)
 
         st.session_state["diesel_fetch_result"] = result
         st.session_state["diesel_month"] = sel_month
@@ -514,7 +515,7 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
     if "diesel_fetch_result" in st.session_state:
         result = st.session_state["diesel_fetch_result"]
 
-        if isinstance(result, dict) and result.get("status") == "fallback":
+        if result["status"] == "manual":
             st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
             st.write("เหตุผล:", result.get("reason"))
 
@@ -528,9 +529,9 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             st.session_state["diesel_manual_price"] = manual_price
 
         else:
-            st.success("✅ ดึงข้อมูลสำเร็จ")
-            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
-            st.session_state["diesel_auto_price"] = result
+            st.success(f"✅ ดึงข้อมูลสำเร็จ ({result['status']})")
+            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result['value']} บาท/ลิตร")
+            st.session_state["diesel_auto_price"] = result["value"]
 
     # ====== ปุ่มบันทึก ======
     st.markdown("---")
@@ -540,7 +541,6 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             month = st.session_state.get("diesel_month")
             year = st.session_state.get("diesel_year")
 
-            # เลือกราคาจาก auto หรือ manual
             if "diesel_auto_price" in st.session_state:
                 final_price = st.session_state["diesel_auto_price"]
             else:
@@ -551,7 +551,7 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
             else:
                 new_rows = []
 
-                for product in products:  # ใช้ list สินค้าของคุณ
+                for product in products:
                     new_rows.append({
                         "สินค้า": product,
                         "เดือน": month,
@@ -567,7 +567,6 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
                 new_df = pd.DataFrame(new_rows)
                 old_df = load_data()
 
-                # ลบข้อมูลซ้ำ
                 if len(old_df) > 0:
                     old_df = old_df[
                         ~(
@@ -580,12 +579,9 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
                 final_df = pd.concat([old_df, new_df], ignore_index=True)
                 save_data(final_df)
 
-                # ล้าง session
                 for k in ["diesel_fetch_result", "diesel_auto_price", "diesel_manual_price"]:
                     if k in st.session_state:
                         del st.session_state[k]
 
                 st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
                 st.experimental_rerun()
-
-
