@@ -40,6 +40,21 @@ def load_data():
 def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
 
+def yoy_compare(df, selected_month, selected_year):
+    current = df[(df["เดือน"] == selected_month) & (df["ปี"] == selected_year)]
+    prev = df[(df["เดือน"] == selected_month) & (df["ปี"] == selected_year - 1)]
+
+    cur_sum = current.groupby("วัสดุ")["ต้นทุน"].sum()
+    prev_sum = prev.groupby("วัสดุ")["ต้นทุน"].sum()
+
+    result = pd.DataFrame({
+        "ปีที่แล้ว": prev_sum,
+        "ปีนี้": cur_sum
+    }).fillna(0)
+
+    result["% เปลี่ยนแปลง"] = ((result["ปีนี้"] - result["ปีที่แล้ว"]) / result["ปีที่แล้ว"].replace(0, 1)) * 100
+    return result.reset_index()
+
 # โหลดข้อมูล
 df_data = load_data()
 
@@ -51,6 +66,7 @@ menu = st.sidebar.radio("เลือกเมนู", [
     "Dashboard",
     "กรอกข้อมูลต้นทุน",
     "ตารางข้อมูล",
+    "วิเคราะห์แนวโน้ม",
     "Export"
 ])
 
@@ -148,25 +164,14 @@ elif menu == "ตารางข้อมูล":
     else:
         st.dataframe(df_data, use_container_width=True)
 
-        st.subheader("แนวโน้มต้นทุนรวม (ต่อสินค้า)")
-        pivot = df_data.groupby(["ปี", "เดือน", "สินค้า"])["ต้นทุน"].sum().reset_index()
+        st.subheader("แนวโน้มต้นทุนรวม (ต่อวัสดุ)")
+        pivot = df_data.groupby(["ปี", "เดือน", "วัสดุ"])["ต้นทุน"].sum().reset_index()
         pivot["เวลา"] = pivot["ปี"].astype(str) + "-" + pivot["เดือน"].astype(str)
 
-        chart_df = pivot.pivot(index="เวลา", columns="สินค้า", values="ต้นทุน")
+        chart_df = pivot.pivot(index="เวลา", columns="วัสดุ", values="ต้นทุน")
         st.line_chart(chart_df)
 
 # =========================
-# Export
+# วิเคราะห์แนวโน้ม (NEW)
 # =========================
-elif menu == "Export":
-    st.title("📤 Export ข้อมูล")
-
-    if len(df_data) == 0:
-        st.info("ยังไม่มีข้อมูลให้ export")
-    else:
-        st.download_button(
-            "ดาวน์โหลดเป็น CSV (เปิดใน Excel ได้)",
-            data=df_data.to_csv(index=False).encode("utf-8-sig"),
-            file_name="cost_data.csv",
-            mime="text/csv"
-        )
+elif menu == "วิเคราะ
