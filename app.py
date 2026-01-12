@@ -5,15 +5,18 @@ import os
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
-# PDF & Plot
+# PDF
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.lib import colors
+
+# Plot
 import matplotlib.pyplot as plt
 
-st.set_page_config(page_title="วิเคราะห์แนวโน้มราคา", layout="wide")
+st.set_page_config(page_title="Cost Intelligence System", layout="wide")
 
 DATA_FILE = "data.csv"
 
@@ -31,7 +34,9 @@ materials_base = [
     "ค่าขนส่ง"
 ]
 
-# ---------------- Utilities ----------------
+# =========================
+# Utilities
+# =========================
 def load_data():
     if os.path.exists(DATA_FILE):
         return pd.read_csv(DATA_FILE)
@@ -53,13 +58,13 @@ def yoy_compare(df, selected_month, selected_year):
     prev_sum = prev.groupby("วัสดุ")["ต้นทุน"].sum()
 
     result = pd.DataFrame({
-        "ปีที่แล้ว": prev_sum,
-        "ปีนี้": cur_sum
+        "Last Year": prev_sum,
+        "This Year": cur_sum
     }).fillna(0)
 
-    result["% เปลี่ยนแปลง"] = (
-        (result["ปีนี้"] - result["ปีที่แล้ว"]) /
-        result["ปีที่แล้ว"].replace(0, 1)
+    result["Change %"] = (
+        (result["This Year"] - result["Last Year"]) /
+        result["Last Year"].replace(0, 1)
     ) * 100
 
     return result.reset_index()
@@ -80,73 +85,126 @@ def thai_date(d: datetime):
     ]
     return f"{d.day} {months[d.month-1]} {d.year}"
 
-# ---------------- PDF Helpers ----------------
-def save_trend_plot(df, filename):
-    plt.figure()
+# =========================
+# Corporate Plot Export
+# =========================
+def save_trend_plot(df, filename, title):
+    plt.figure(figsize=(8,4))
     for col in df.columns:
-        plt.plot(df.index, df[col], label=col)
+        plt.plot(df.index, df[col], marker="o", label=col)
+    plt.title(title)
     plt.legend()
+    plt.grid(alpha=0.3)
     plt.tight_layout()
     plt.savefig(filename)
     plt.close()
 
-def save_bar_plot(df, filename):
-    plt.figure()
+def save_bar_plot(df, filename, title):
+    plt.figure(figsize=(8,4))
     df.plot(kind="bar")
+    plt.title(title)
+    plt.grid(axis="y", alpha=0.3)
     plt.tight_layout()
     plt.savefig(filename)
     plt.close()
 
-def build_pdf(
+# =========================
+# Corporate PDF Builder
+# =========================
+def build_corporate_pdf(
     filepath,
-    header_th, header_en, department,
-    report_title_th, report_title_en,
-    summary_th, summary_en,
-    tables_and_images
+    header_th,
+    header_en,
+    department,
+    report_title_th,
+    report_title_en,
+    exec_summary_th,
+    exec_summary_en,
+    sections
 ):
     styles = getSampleStyleSheet()
+
+    styles["Title"].alignment = TA_CENTER
+    styles["Heading1"].alignment = TA_LEFT
+
+    cover_title = ParagraphStyle(
+        name="CoverTitle",
+        parent=styles["Title"],
+        fontSize=22,
+        spaceAfter=20
+    )
+
+    subtitle = ParagraphStyle(
+        name="Subtitle",
+        parent=styles["Normal"],
+        alignment=TA_CENTER,
+        fontSize=12,
+        textColor=colors.grey
+    )
+
+    h1 = ParagraphStyle(
+        name="H1",
+        parent=styles["Heading1"],
+        fontSize=16,
+        spaceAfter=12
+    )
+
+    normal = styles["Normal"]
+
     story = []
 
-    if header_th or header_en or department:
-        if header_th:
-            story.append(Paragraph(header_th, styles["Title"]))
-        if header_en:
-            story.append(Paragraph(header_en, styles["Normal"]))
-        if department:
-            story.append(Paragraph(department, styles["Normal"]))
-        story.append(Spacer(1, 1*cm))
+    # -------- Cover --------
+    if header_th:
+        story.append(Paragraph(header_th, cover_title))
+    if header_en:
+        story.append(Paragraph(header_en, subtitle))
+    if department:
+        story.append(Spacer(1, 0.5*cm))
+        story.append(Paragraph(department, subtitle))
 
-    story.append(Paragraph(report_title_en, styles["Heading1"]))
-    story.append(Paragraph(report_title_th, styles["Heading2"]))
-    story.append(Spacer(1, 1*cm))
+    story.append(Spacer(1, 2*cm))
+    story.append(Paragraph(report_title_en, cover_title))
+    story.append(Paragraph(report_title_th, subtitle))
 
-    story.append(Paragraph("Executive Summary", styles["Heading2"]))
-    story.append(Paragraph(summary_en, styles["Normal"]))
-    story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph("สรุปผู้บริหาร", styles["Heading2"]))
-    story.append(Paragraph(summary_th, styles["Normal"]))
+    today = thai_date(datetime.today())
+    story.append(Spacer(1, 2*cm))
+    story.append(Paragraph(f"Generated on: {today}", subtitle))
     story.append(PageBreak())
 
-    for item in tables_and_images:
-        if item["type"] == "table":
-            story.append(Paragraph(item["title"], styles["Heading2"]))
-            story.append(Spacer(1, 0.3*cm))
-            story.append(item["content"])
-            story.append(PageBreak())
-        elif item["type"] == "image":
-            story.append(Paragraph(item["title"], styles["Heading2"]))
-            story.append(Spacer(1, 0.3*cm))
-            story.append(Image(item["content"], width=16*cm, height=9*cm))
-            story.append(PageBreak())
+    # -------- Executive Summary --------
+    story.append(Paragraph("Executive Summary", h1))
+    story.append(Paragraph(exec_summary_en, normal))
+    story.append(Spacer(1, 1*cm))
+    story.append(Paragraph("สรุปผู้บริหาร", h1))
+    story.append(Paragraph(exec_summary_th, normal))
+    story.append(PageBreak())
+
+    # -------- Sections --------
+    for sec in sections:
+        story.append(Paragraph(sec["title"], h1))
+        story.append(Spacer(1, 0.3*cm))
+
+        if sec["type"] == "table":
+            story.append(sec["content"])
+        elif sec["type"] == "image":
+            story.append(Image(sec["content"], width=16*cm, height=9*cm))
+        elif sec["type"] == "text":
+            story.append(Paragraph(sec["content"], normal))
+
+        story.append(PageBreak())
 
     doc = SimpleDocTemplate(filepath, pagesize=A4)
     doc.build(story)
 
-# ---------------- Load ----------------
+# =========================
+# Load
+# =========================
 df_data = load_data()
 
-# ---------------- Sidebar ----------------
-st.sidebar.title("📊 เมนู")
+# =========================
+# Sidebar
+# =========================
+st.sidebar.title("📊 Cost Intelligence")
 menu = st.sidebar.radio(
     "เลือกเมนู",
     [
@@ -156,26 +214,32 @@ menu = st.sidebar.radio(
         "วิเคราะห์แนวโน้ม",
         "คำแนะนำการจัดซื้อ",
         "พยากรณ์ราคา",
-        "รายงาน PDF",
+        "รายงาน PDF (Corporate)",
         "Export"
     ]
 )
 
-# -------- Dashboard --------
+# =========================
+# Dashboard
+# =========================
 if menu == "Dashboard":
     st.title("📊 Dashboard")
     if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
-        st.subheader("ข้อมูลล่าสุด")
+        st.subheader("Latest Records")
         st.dataframe(df_data.tail(10), use_container_width=True)
-        st.subheader("ต้นทุนรวมตามสินค้า")
+
+        st.subheader("Total Cost by Product")
         summary = df_data.groupby("สินค้า")["ต้นทุน"].sum()
         st.bar_chart(summary)
 
-# -------- Input --------
+# =========================
+# Input
+# =========================
 elif menu == "กรอกข้อมูลต้นทุน":
     st.title("➕ กรอกข้อมูลต้นทุน")
+
     col1, col2, col3 = st.columns(3)
     with col1:
         product = st.selectbox("เลือกสินค้า", products)
@@ -191,26 +255,36 @@ elif menu == "กรอกข้อมูลต้นทุน":
     )
 
     overhead_percent = st.number_input("Overhead (%)", min_value=0.0, step=1.0)
+
     material_rows = []
     st.markdown("---")
 
     for mat in selected_materials:
         st.markdown(f"### {mat}")
         c1, c2 = st.columns(2)
+
         with c1:
             price = st.number_input(
                 f"ราคา/หน่วย ({mat})",
                 min_value=0.0, step=1.0, key=f"p_{mat}"
             )
+
         with c2:
             qty = st.number_input(
                 f"ปริมาณที่ใช้ ({mat})",
                 min_value=0.0, step=0.1, key=f"q_{mat}"
             )
+
         cost = price * qty
+
         material_rows.append({
-            "สินค้า": product, "เดือน": month, "ปี": year, "วัสดุ": mat,
-            "ราคา/หน่วย": price, "ปริมาณ": qty, "ต้นทุน": cost,
+            "สินค้า": product,
+            "เดือน": month,
+            "ปี": year,
+            "วัสดุ": mat,
+            "ราคา/หน่วย": price,
+            "ปริมาณ": qty,
+            "ต้นทุน": cost,
             "overhead_percent": overhead_percent,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         })
@@ -234,22 +308,21 @@ elif menu == "กรอกข้อมูลต้นทุน":
             st.success("บันทึกข้อมูลเรียบร้อยแล้ว 🎉")
             st.experimental_rerun()
 
-# -------- Table --------
+# =========================
+# Table
+# =========================
 elif menu == "ตารางข้อมูล":
     st.title("📋 ตารางข้อมูล")
     if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
         st.dataframe(df_data, use_container_width=True)
-        st.subheader("แนวโน้มต้นทุนรวม (ต่อวัสดุ)")
-        pivot = df_data.groupby(["ปี", "เดือน", "วัสดุ"])["ต้นทุน"].sum().reset_index()
-        pivot["เวลา"] = pivot["ปี"].astype(str) + "-" + pivot["เดือน"].astype(str)
-        chart_df = pivot.pivot(index="เวลา", columns="วัสดุ", values="ต้นทุน")
-        st.line_chart(chart_df)
 
-# -------- Trend --------
+# =========================
+# Trend
+# =========================
 elif menu == "วิเคราะห์แนวโน้ม":
-    st.title("📈 วิเคราะห์แนวโน้มวัสดุ (YoY)")
+    st.title("📈 วิเคราะห์แนวโน้ม (YoY)")
     if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
@@ -258,23 +331,25 @@ elif menu == "วิเคราะห์แนวโน้ม":
             sel_month = st.selectbox("เลือกเดือน", sorted(df_data["เดือน"].unique()))
         with col2:
             sel_year = st.selectbox("เลือกปี", sorted(df_data["ปี"].unique()))
+
         result = yoy_compare(df_data, sel_month, sel_year)
 
         if len(result) == 0:
             st.warning("ไม่มีข้อมูลปีที่แล้วสำหรับเปรียบเทียบ")
         else:
             st.dataframe(result, use_container_width=True)
-            st.bar_chart(result.set_index("วัสดุ")[["ปีที่แล้ว", "ปีนี้"]])
+            st.bar_chart(result.set_index("วัสดุ")[["Last Year", "This Year"]])
 
-# -------- Recommendation --------
+# =========================
+# Recommendation
+# =========================
 elif menu == "คำแนะนำการจัดซื้อ":
-    st.title("💡 คำแนะนำการจัดซื้อ (งวดล่าสุด)")
+    st.title("💡 Recommendation")
     if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
         latest_year = df_data["ปี"].max()
         latest_month = df_data[df_data["ปี"] == latest_year]["เดือน"].max()
-        st.write(f"📌 ใช้ข้อมูลงวดล่าสุด: {latest_month}/{latest_year}")
 
         current_data = df_data[
             (df_data["ปี"] == latest_year) &
@@ -283,24 +358,23 @@ elif menu == "คำแนะนำการจัดซื้อ":
 
         total_cost_now = current_data["ต้นทุน"].sum()
         yoy_result = yoy_compare(df_data, latest_month, latest_year)
-        avg_change = yoy_result["% เปลี่ยนแปลง"].mean()
+
+        avg_change = yoy_result["Change %"].mean()
         recommended_price = total_cost_now * (1 + avg_change / 100)
 
-        st.subheader("แนวโน้มวัสดุ (YoY)")
+        st.subheader("วัสดุที่มีผลต่อราคา")
         st.dataframe(yoy_result, use_container_width=True)
 
         st.markdown("---")
         st.write(f"ต้นทุนปัจจุบัน: {total_cost_now:,.2f} บาท")
-        if avg_change > 0:
-            st.write(f"แนวโน้มเฉลี่ย: เพิ่มขึ้น {avg_change:.2f}%")
-        else:
-            st.write(f"แนวโน้มเฉลี่ย: ลดลง {abs(avg_change):.2f}%")
-
+        st.write(f"แนวโน้มเฉลี่ย: {avg_change:.2f}%")
         st.success(f"👉 ควรซื้อไม่เกิน: {recommended_price:,.2f} บาท")
 
-# -------- Forecast --------
+# =========================
+# Forecast
+# =========================
 elif menu == "พยากรณ์ราคา":
-    st.title("🔮 พยากรณ์ราคา (Linear Regression)")
+    st.title("🔮 Forecast")
     if len(df_data) == 0:
         st.info("ยังไม่มีข้อมูล")
     else:
@@ -309,42 +383,44 @@ elif menu == "พยากรณ์ราคา":
 
         mat_df = df_data[df_data["วัสดุ"] == material]
         mat_df = mat_df.groupby(["ปี", "เดือน"])["ต้นทุน"].sum().reset_index()
-        mat_df["time_index"] = range(len(mat_df))
+        mat_df["t"] = range(len(mat_df))
 
         if len(mat_df) < 3:
-            st.warning("ข้อมูลน้อยเกินไปสำหรับการพยากรณ์")
+            st.warning("ข้อมูลไม่พอสำหรับพยากรณ์")
         else:
             forecast_values = linear_forecast(mat_df["ต้นทุน"], periods)
+
             hist = forecast_values[:len(mat_df)]
             future = forecast_values[len(mat_df):]
 
-            hist_df = pd.DataFrame({"งวด": mat_df["time_index"], "ต้นทุน": hist})
-            future_df = pd.DataFrame({
-                "งวด": range(len(mat_df), len(mat_df) + periods),
-                "ต้นทุน": future
-            })
+            chart_df = pd.DataFrame({
+                "Index": list(range(len(hist))) + list(range(len(hist), len(hist) + len(future))),
+                "Cost": list(hist) + list(future)
+            }).set_index("Index")
 
-            chart_df = pd.concat([hist_df, future_df]).set_index("งวด")
             st.line_chart(chart_df)
 
-# -------- PDF Report --------
-elif menu == "รายงาน PDF":
-    st.title("📄 สร้างรายงาน PDF")
+# =========================
+# Corporate PDF
+# =========================
+elif menu == "รายงาน PDF (Corporate)":
+    st.title("📄 Corporate PDF Report")
 
-    header_th = st.text_input("ชื่อบริษัท (TH) – ใส่หรือเว้นว่างได้")
+    header_th = st.text_input("ชื่อบริษัท (TH)")
     header_en = st.text_input("Company Name (EN)")
-    department = st.text_input("ชื่อแผนก / Department")
+    department = st.text_input("Department")
 
     report_title_th = "รายงานวิเคราะห์ต้นทุนและพยากรณ์ราคา"
     report_title_en = "Cost Analysis & Forecast Report"
 
-    summary_th = "รายงานฉบับนี้จัดทำขึ้นเพื่อสรุปแนวโน้มต้นทุน วิเคราะห์ YoY และคาดการณ์ราคาในอนาคต"
-    summary_en = "This report summarizes cost trends, YoY analysis, and future forecasts."
+    if st.button("📥 Generate PDF"):
+        filepath = "Corporate_Report.pdf"
 
-    if st.button("📥 สร้าง PDF"):
-        filepath = "cost_report.pdf"
+        exec_summary_th = "รายงานฉบับนี้สรุปแนวโน้มต้นทุน วิเคราะห์ YoY และคาดการณ์ราคาในอนาคต"
+        exec_summary_en = "This report summarizes cost trends, YoY analysis, and future forecasts."
 
-        tables_and_images = []
+        sections = []
+
         if len(df_data) > 0:
             tbl_data = [df_data.columns.tolist()] + df_data.head(20).values.tolist()
             table = Table(tbl_data)
@@ -352,36 +428,43 @@ elif menu == "รายงาน PDF":
                 ("GRID", (0,0), (-1,-1), 0.5, colors.grey),
                 ("BACKGROUND", (0,0), (-1,0), colors.lightgrey)
             ]))
-            tables_and_images.append({
+
+            sections.append({
+                "title": "Sample Data",
                 "type": "table",
-                "title": "ข้อมูลตัวอย่าง",
                 "content": table
             })
 
-        build_pdf(
+        build_corporate_pdf(
             filepath,
-            header_th, header_en, department,
-            report_title_th, report_title_en,
-            summary_th, summary_en,
-            tables_and_images
+            header_th,
+            header_en,
+            department,
+            report_title_th,
+            report_title_en,
+            exec_summary_th,
+            exec_summary_en,
+            sections
         )
 
         with open(filepath, "rb") as f:
             st.download_button(
-                "⬇️ ดาวน์โหลด PDF",
+                "⬇️ Download PDF",
                 f,
-                file_name="Cost_Report.pdf",
+                file_name="Corporate_Report.pdf",
                 mime="application/pdf"
             )
 
-# -------- Export --------
+# =========================
+# Export
+# =========================
 elif menu == "Export":
-    st.title("📤 Export ข้อมูล")
+    st.title("📤 Export Data")
     if len(df_data) == 0:
-        st.info("ยังไม่มีข้อมูลให้ export")
+        st.info("ยังไม่มีข้อมูล")
     else:
         st.download_button(
-            "ดาวน์โหลดเป็น CSV (เปิดใน Excel ได้)",
+            "Download CSV",
             data=df_data.to_csv(index=False).encode("utf-8-sig"),
             file_name="cost_data.csv",
             mime="text/csv"
