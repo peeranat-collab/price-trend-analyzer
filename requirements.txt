@@ -4,3 +4,5 @@ numpy
 scikit-learn
 matplotlib
 reportlab
+beautifulsoup4
+lxml
