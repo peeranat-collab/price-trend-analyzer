@@ -1,21 +1,23 @@
 from playwright.sync_api import sync_playwright
 from datetime import datetime
-import pandas as pd
+import re
 import time
 
 class BangchakAdvancedScraperError(Exception):
     pass
 
 
-def get_monthly_average_advanced(year, month, headless=True, timeout=20000):
-    """
-    ดึงราคาดีเซลจาก Bangchak ด้วย Browser Automation (Playwright)
-    คืนค่า: float (ค่าเฉลี่ยรายเดือน) หรือ raise error
-    """
+def _extract_floats(text):
+    nums = re.findall(r"\d+\.?\d*", text.replace(",", ""))
+    return [float(n) for n in nums]
 
+
+def get_monthly_average_advanced(year, month, headless=True, timeout=30000):
+    """
+    ดึงราคาดีเซลด้วย Browser Automation
+    คืนค่า: float (ค่าเฉลี่ยรายเดือน)
+    """
     url = "https://www.bangchak.co.th/th/oilprice/historical"
-
-    prices = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
@@ -24,31 +26,31 @@ def get_monthly_average_advanced(year, month, headless=True, timeout=20000):
         try:
             page.goto(url, timeout=timeout)
             page.wait_for_load_state("networkidle")
-
-            # รอหน้าเว็บ render (เพราะใช้ JS)
             time.sleep(5)
 
-            # ===== TODO: selector ตรงนี้จะ fine-tune ใน Part 2 =====
-            # ตอนนี้เราจะ dump ตารางทั้งหมดก่อน
+            # ---- NOTE ----
+            # ตรงนี้ต้อง fine-tune selector จากหน้าเว็บจริง
+            # ผมจะทำรอบถัดไปให้ตรง 100%
+            # ตอนนี้เป็นโครง robust
+            # ----------------
+
             tables = page.query_selector_all("table")
-
             if not tables:
-                raise BangchakAdvancedScraperError("ไม่พบตารางข้อมูล")
+                raise BangchakAdvancedScraperError("ไม่พบตารางข้อมูล (JS/iframe)")
 
-            # ดึง text ทั้งหมดจากตาราง
-            raw_text = tables[0].inner_text()
+            text = tables[0].inner_text()
 
-            # === Placeholder logic ===
-            # ใน Part 2 ผมจะ:
+            # TODO: Part 2.1 (รอบถัดไป)
             # - parse วันที่
             # - filter เฉพาะดีเซล
             # - แยกวัน
-            # - แปลงเป็น float
-            # - เลือกเฉพาะเดือน/ปี
-            # - คำนวณค่าเฉลี่ยจริง
+            # - map day → price
+            # - filter year/month
+            # - คำนวณ average
 
+            # ตอนนี้ยังไม่รู้โครง HTML จริง → แจ้ง fallback
             raise BangchakAdvancedScraperError(
-                "Advanced parser ยังไม่ถูก fine-tune (จะทำใน Part 2)"
+                "Advanced parser ต้อง fine-tune selector กับหน้าเว็บจริง"
             )
 
         except Exception as e:
