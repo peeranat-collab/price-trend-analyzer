@@ -12,11 +12,11 @@ class AluminumScraperError(Exception):
 def fetch_aluminum_month(year: int, month: int):
     """
     ดึงราคาของเดือนนั้นจาก Yahoo Finance
-    ใช้ Symbol: AL=F
+    ใช้ Symbol: ALI=F
     คืนค่า: ค่าเฉลี่ยรายเดือน (บาท/ตัน)
     """
     try:
-        symbol = "AL=F"
+        symbol = "ALI=F"
         ticker = yf.Ticker(symbol)
 
         start_date = datetime(year, month, 1)
