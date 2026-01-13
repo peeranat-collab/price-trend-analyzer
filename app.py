@@ -5,6 +5,11 @@ import os
 import numpy as np
 from sklearn.linear_model import LinearRegression
 from scrapers.bangchak_priority import get_diesel_price_with_priority
+from scrapers.aluminum_yahoo import (
+    get_aluminum_monthly_avg_thb,
+    get_last_n_months
+)
+
 
 
 
@@ -219,6 +224,7 @@ menu = st.sidebar.radio(
         "พยากรณ์ราคา",
         "รายงาน PDF (Corporate)",
         "🔄 อัปเดตราคาน้ำมัน (ดีเซล)",
+        "🪙 อัปเดตราคาอะลูมิเนียม",
         "Export"
     ]
 )
@@ -586,3 +592,5 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
 
                 st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
                 st.experimental_rerun()
+elif menu == "🪙 อัปเดตราคาอะลูมิเนียม":
+
