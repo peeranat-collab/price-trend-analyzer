@@ -11,6 +11,7 @@ from scrapers.aluminum_yahoo import (
 )
 from datetime import datetime
 from scrapers.yahoo_aluminum import get_aluminum_with_priority
+from scrapers.yahoo_cotton import get_cotton_with_priority
 
 
 
@@ -227,6 +228,7 @@ menu = st.sidebar.radio(
         "รายงาน PDF (Corporate)",
         "🔄 อัปเดตราคาน้ำมัน (ดีเซล)",
         "🧲 อัปเดตราคาอะลูมิเนียม",
+        "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)",
         "Export"
     ]
 )
@@ -747,6 +749,162 @@ elif menu == "🧲 อัปเดตราคาอะลูมิเนีย�
                         del st.session_state[k]
 
                 st.success("🎉 บันทึกราคาอะลูมิเนียมเรียบร้อยแล้ว")
+                st.experimental_rerun()
+elif menu == "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)":
+
+    st.title("🧵 ราคาผ้าฝ้าย (Cotton – Yahoo Finance)")
+    st.info("ระบบจะดึงราคา CT=F และแปลงเป็น บาท/กิโลกรัม (fix 33 บาท/USD)")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🔄 Auto: เดือนปัจจุบัน"):
+            result = get_cotton_with_priority(mode="current")
+            st.session_state["cotton_result"] = result
+
+    with col2:
+        if st.button("⏳ Auto: ย้อนหลัง 36 เดือน"):
+            result = get_cotton_with_priority(mode="last36")
+            st.session_state["cotton_result"] = result
+
+    st.markdown("---")
+
+    # ===== แสดงผล =====
+    if "cotton_result" in st.session_state:
+        result = st.session_state["cotton_result"]
+
+        if isinstance(result, dict) and result.get("status") == "fallback":
+            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+            st.write("เหตุผล:", result.get("reason"))
+
+            st.subheader("✍️ กรอกเอง (Manual Fallback)")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                manual_month = st.selectbox("เดือน", list(range(1, 13)), key="cot_m")
+            with c2:
+                manual_year = st.selectbox("ปี", list(range(2015, 2036)), key="cot_y")
+
+            manual_price = st.number_input(
+                "ราคาผ้าฝ้าย (บาท/กิโลกรัม)",
+                min_value=0.0,
+                step=1.0
+            )
+
+            st.session_state["cotton_manual"] = {
+                "month": manual_month,
+                "year": manual_year,
+                "price": manual_price
+            }
+
+        else:
+            if result.get("mode") == "current":
+                st.success("✅ ดึงข้อมูลเดือนปัจจุบันสำเร็จ")
+                st.write(f"ราคาเฉลี่ย = {float(result['value'])} บาท/กิโลกรัม")
+                st.session_state["cotton_auto_single"] = result
+
+            elif result.get("mode") == "last36":
+                st.success(f"✅ ดึงข้อมูลย้อนหลัง {len(result['values'])} เดือน")
+
+                df = pd.DataFrame([
+                    {"เดือน": k, "ราคา (บาท/กก.)": v}
+                    for k, v in result["values"].items()
+                ])
+
+                st.dataframe(df)
+                st.session_state["cotton_auto_36"] = result["values"]
+
+    # ===== บันทึก =====
+    st.markdown("---")
+
+    if "cotton_result" in st.session_state:
+        if st.button("💾 บันทึกเข้าระบบ"):
+
+            new_rows = []
+
+            # ---- Auto เดือนเดียว ----
+            if "cotton_auto_single" in st.session_state:
+                r = st.session_state["cotton_auto_single"]
+                now = datetime.now()
+
+                for product in products:
+                    new_rows.append({
+                        "สินค้า": product,
+                        "เดือน": now.month,
+                        "ปี": now.year,
+                        "วัสดุ": "ผ้าฝ้าย (Cotton)",
+                        "ราคา/หน่วย": float(r["value"]),
+                        "ปริมาณ": 1,
+                        "ต้นทุน": float(r["value"]),
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+            # ---- Auto 36 เดือน ----
+            elif "cotton_auto_36" in st.session_state:
+                values = st.session_state["cotton_auto_36"]
+
+                for key, price in values.items():
+                    y, m = key.split("-")
+                    y = int(y)
+                    m = int(m)
+
+                    for product in products:
+                        new_rows.append({
+                            "สินค้า": product,
+                            "เดือน": m,
+                            "ปี": y,
+                            "วัสดุ": "ผ้าฝ้าย (Cotton)",
+                            "ราคา/หน่วย": float(price),
+                            "ปริมาณ": 1,
+                            "ต้นทุน": float(price),
+                            "overhead_percent": 0,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+            # ---- Manual ----
+            elif "cotton_manual" in st.session_state:
+                m = st.session_state["cotton_manual"]
+
+                if m["price"] <= 0:
+                    st.error("กรุณาระบุราคาที่ถูกต้อง")
+                    st.stop()
+
+                for product in products:
+                    new_rows.append({
+                        "สินค้า": product,
+                        "เดือน": m["month"],
+                        "ปี": m["year"],
+                        "วัสดุ": "ผ้าฝ้าย (Cotton)",
+                        "ราคา/หน่วย": float(m["price"]),
+                        "ปริมาณ": 1,
+                        "ต้นทุน": float(m["price"]),
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+            if len(new_rows) == 0:
+                st.error("ไม่มีข้อมูลให้บันทึก")
+            else:
+                new_df = pd.DataFrame(new_rows)
+                old_df = load_data()
+
+                if len(old_df) > 0:
+                    old_df = old_df[old_df["วัสดุ"] != "ผ้าฝ้าย (Cotton)"]
+
+                final_df = pd.concat([old_df, new_df], ignore_index=True)
+                save_data(final_df)
+
+                for k in [
+                    "cotton_result",
+                    "cotton_auto_single",
+                    "cotton_auto_36",
+                    "cotton_manual"
+                ]:
+                    if k in st.session_state:
+                        del st.session_state[k]
+
+                st.success("🎉 บันทึกราคาผ้าฝ้ายเรียบร้อยแล้ว")
                 st.experimental_rerun()
 
 
