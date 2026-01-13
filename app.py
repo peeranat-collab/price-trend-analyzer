@@ -9,6 +9,7 @@ from scrapers.aluminum_yahoo import (
     get_aluminum_monthly_avg_thb,
     get_last_n_months
 )
+from datetime import datetime
 
 
 
@@ -594,9 +595,11 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
                 st.experimental_rerun()
 elif menu == "🪙 อัปเดตราคาอะลูมิเนียม":
     st.title("🪙 อัปเดตราคาอะลูมิเนียม (Yahoo Finance)")
-
     st.info("ระบบจะดึงราคาอะลูมิเนียมจาก Yahoo Finance และคำนวณค่าเฉลี่ยรายเดือน (บาท/ตัน)")
 
+    # =========================
+    # Auto Controls
+    # =========================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -618,15 +621,19 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
     with col2:
         if st.button("⏳ Auto: ย้อนหลัง 36 เดือน"):
             st.session_state["al_bulk_mode"] = True
-            st.success("โหมดดึงย้อนหลัง 36 เดือน พร้อมแล้ว (จะบันทึกในขั้นตอนถัดไป)")
+            st.success("โหมดดึงย้อนหลัง 36 เดือน พร้อมแล้ว")
 
     st.markdown("---")
+
+    # =========================
+    # Manual Input
+    # =========================
     st.subheader("✍️ กรอกเอง (Manual Fallback)")
 
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
+    mcol1, mcol2 = st.columns(2)
+    with mcol1:
         manual_month = st.selectbox("เดือน", list(range(1, 13)), key="al_manual_month")
-    with m_col2:
+    with mcol2:
         manual_year = st.selectbox("ปี", list(range(2020, 2035)), key="al_manual_year")
 
     manual_price = st.number_input(
@@ -638,16 +645,20 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
 
     st.markdown("---")
 
+    # =========================
+    # Show Auto Result
+    # =========================
     if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
         st.subheader("📌 ราคาที่ดึงได้อัตโนมัติ")
         st.write(f"{st.session_state['al_auto_price']} บาท/ตัน")
         st.write(f"สำหรับ {st.session_state['al_month']}/{st.session_state['al_year']}")
 
-    st.info("⚠️ ปุ่มบันทึกจะถูกเพิ่มใน Part 3 (เชื่อมเข้าระบบจริง)")
     st.markdown("---")
     st.subheader("💾 บันทึกเข้าระบบ")
 
-    # ===== Auto: เดือนเดียว =====
+    # =========================
+    # Save Auto Single Month
+    # =========================
     if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
         if st.button("💾 บันทึกราคาอัตโนมัติ (เดือนนี้)"):
             price = st.session_state["al_auto_price"]
@@ -674,7 +685,9 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
             del st.session_state["al_auto_price"]
             st.experimental_rerun()
 
-    # ===== Auto: ย้อนหลัง 36 เดือน =====
+    # =========================
+    # Auto 36 Months
+    # =========================
     if st.session_state.get("al_bulk_mode"):
         if st.button("🚀 เริ่มดึง + บันทึกย้อนหลัง 36 เดือน"):
             months = get_last_n_months(36)
@@ -714,7 +727,9 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
             del st.session_state["al_bulk_mode"]
             st.experimental_rerun()
 
-    # ===== Manual Save =====
+    # =========================
+    # Manual Save
+    # =========================
     if st.button("💾 บันทึกแบบ Manual"):
         price = st.session_state.get("al_manual_price")
         month = st.session_state.get("al_manual_month")
@@ -740,5 +755,6 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
             save_rows_to_system(new_rows)
             st.success(f"บันทึกอะลูมิเนียม {month}/{year} เรียบร้อยแล้ว 🎉")
             st.experimental_rerun()
+
 
 
