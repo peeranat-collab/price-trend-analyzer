@@ -593,4 +593,152 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
                 st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
                 st.experimental_rerun()
 elif menu == "🪙 อัปเดตราคาอะลูมิเนียม":
+    st.title("🪙 อัปเดตราคาอะลูมิเนียม (Yahoo Finance)")
+
+    st.info("ระบบจะดึงราคาอะลูมิเนียมจาก Yahoo Finance และคำนวณค่าเฉลี่ยรายเดือน (บาท/ตัน)")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🔄 Auto: เดือนปัจจุบัน"):
+            today = datetime.today()
+            year = today.year
+            month = today.month
+
+            try:
+                price = get_aluminum_monthly_avg_thb(year, month)
+                st.session_state["al_auto_price"] = price
+                st.session_state["al_year"] = year
+                st.session_state["al_month"] = month
+                st.success(f"ดึงสำเร็จ: {price} บาท/ตัน")
+            except Exception as e:
+                st.error(f"ดึงไม่สำเร็จ: {e}")
+                st.session_state["al_auto_price"] = None
+
+    with col2:
+        if st.button("⏳ Auto: ย้อนหลัง 36 เดือน"):
+            st.session_state["al_bulk_mode"] = True
+            st.success("โหมดดึงย้อนหลัง 36 เดือน พร้อมแล้ว (จะบันทึกในขั้นตอนถัดไป)")
+
+    st.markdown("---")
+    st.subheader("✍️ กรอกเอง (Manual Fallback)")
+
+    m_col1, m_col2 = st.columns(2)
+    with m_col1:
+        manual_month = st.selectbox("เดือน", list(range(1, 13)), key="al_manual_month")
+    with m_col2:
+        manual_year = st.selectbox("ปี", list(range(2020, 2035)), key="al_manual_year")
+
+    manual_price = st.number_input(
+        "ราคาอะลูมิเนียม (บาท/ตัน)",
+        min_value=0.0,
+        step=10.0,
+        key="al_manual_price"
+    )
+
+    st.markdown("---")
+
+    if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
+        st.subheader("📌 ราคาที่ดึงได้อัตโนมัติ")
+        st.write(f"{st.session_state['al_auto_price']} บาท/ตัน")
+        st.write(f"สำหรับ {st.session_state['al_month']}/{st.session_state['al_year']}")
+
+    st.info("⚠️ ปุ่มบันทึกจะถูกเพิ่มใน Part 3 (เชื่อมเข้าระบบจริง)")
+        st.markdown("---")
+    st.subheader("💾 บันทึกเข้าระบบ")
+
+    # ===== Auto: เดือนเดียว =====
+    if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
+        if st.button("💾 บันทึกราคาอัตโนมัติ (เดือนนี้)"):
+            price = st.session_state["al_auto_price"]
+            year = st.session_state["al_year"]
+            month = st.session_state["al_month"]
+
+            new_rows = []
+            for product in products:
+                new_rows.append({
+                    "สินค้า": product,
+                    "เดือน": month,
+                    "ปี": year,
+                    "วัสดุ": "อะลูมิเนียม",
+                    "ราคา/หน่วย": price,
+                    "ปริมาณ": 1,
+                    "ต้นทุน": price,
+                    "overhead_percent": 0,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+
+            save_rows_to_system(new_rows)
+            st.success(f"บันทึกอะลูมิเนียม {month}/{year} เรียบร้อยแล้ว 🎉")
+
+            del st.session_state["al_auto_price"]
+            st.experimental_rerun()
+
+    # ===== Auto: ย้อนหลัง 36 เดือน =====
+    if st.session_state.get("al_bulk_mode"):
+        if st.button("🚀 เริ่มดึง + บันทึกย้อนหลัง 36 เดือน"):
+            months = get_last_n_months(36)
+
+            progress = st.progress(0)
+            status_box = st.empty()
+
+            all_new_rows = []
+            total = len(months)
+
+            for i, (y, m) in enumerate(months):
+                try:
+                    price = get_aluminum_monthly_avg_thb(y, m)
+                    for product in products:
+                        all_new_rows.append({
+                            "สินค้า": product,
+                            "เดือน": m,
+                            "ปี": y,
+                            "วัสดุ": "อะลูมิเนียม",
+                            "ราคา/หน่วย": price,
+                            "ปริมาณ": 1,
+                            "ต้นทุน": price,
+                            "overhead_percent": 0,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+                    status_box.info(f"✔ {m}/{y}: {price} บาท/ตัน")
+
+                except Exception as e:
+                    status_box.warning(f"⚠ ข้าม {m}/{y}: {e}")
+
+                progress.progress((i + 1) / total)
+
+            save_rows_to_system(all_new_rows)
+
+            st.success("🎉 ดึง + บันทึกย้อนหลัง 36 เดือนเสร็จสมบูรณ์แล้ว!")
+            del st.session_state["al_bulk_mode"]
+            st.experimental_rerun()
+
+    # ===== Manual Save =====
+    if st.button("💾 บันทึกแบบ Manual"):
+        price = st.session_state.get("al_manual_price")
+        month = st.session_state.get("al_manual_month")
+        year = st.session_state.get("al_manual_year")
+
+        if price is None or price <= 0:
+            st.error("กรุณาระบุราคาที่ถูกต้อง")
+        else:
+            new_rows = []
+            for product in products:
+                new_rows.append({
+                    "สินค้า": product,
+                    "เดือน": month,
+                    "ปี": year,
+                    "วัสดุ": "อะลูมิเนียม",
+                    "ราคา/หน่วย": price,
+                    "ปริมาณ": 1,
+                    "ต้นทุน": price,
+                    "overhead_percent": 0,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+
+            save_rows_to_system(new_rows)
+            st.success(f"บันทึกอะลูมิเนียม {month}/{year} เรียบร้อยแล้ว 🎉")
+            st.experimental_rerun()
+
 
