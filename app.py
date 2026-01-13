@@ -10,6 +10,7 @@ from scrapers.aluminum_yahoo import (
     get_last_n_months
 )
 from datetime import datetime
+from scrapers.yahoo_aluminum import get_aluminum_with_priority
 
 
 
@@ -225,7 +226,7 @@ menu = st.sidebar.radio(
         "พยากรณ์ราคา",
         "รายงาน PDF (Corporate)",
         "🔄 อัปเดตราคาน้ำมัน (ดีเซล)",
-        "🪙 อัปเดตราคาอะลูมิเนียม",
+        "🧲 อัปเดตราคาอะลูมิเนียม",
         "Export"
     ]
 )
@@ -593,116 +594,110 @@ elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเ�
 
                 st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
                 st.experimental_rerun()
-elif menu == "🪙 อัปเดตราคาอะลูมิเนียม":
-    st.title("🪙 อัปเดตราคาอะลูมิเนียม (Yahoo Finance)")
+# =========================
+# 🧲 อัปเดตราคาอะลูมิเนียม (Yahoo Finance)
+# =========================
+elif menu == "🧲 อัปเดตราคาอะลูมิเนียม":
+
+    st.title("🧲 ราคาอะลูมิเนียม (Yahoo Finance)")
+
     st.info("ระบบจะดึงราคาอะลูมิเนียมจาก Yahoo Finance และคำนวณค่าเฉลี่ยรายเดือน (บาท/ตัน)")
 
-    # =========================
-    # Auto Controls
-    # =========================
     col1, col2 = st.columns(2)
-
     with col1:
         if st.button("🔄 Auto: เดือนปัจจุบัน"):
-            today = datetime.today()
-            year = today.year
-            month = today.month
-
-            try:
-                price = get_aluminum_monthly_avg_thb(year, month)
-                st.session_state["al_auto_price"] = price
-                st.session_state["al_year"] = year
-                st.session_state["al_month"] = month
-                st.success(f"ดึงสำเร็จ: {price} บาท/ตัน")
-            except Exception as e:
-                st.error(f"ดึงไม่สำเร็จ: {e}")
-                st.session_state["al_auto_price"] = None
+            result = get_aluminum_with_priority(mode="current")
+            st.session_state["aluminum_result"] = result
 
     with col2:
         if st.button("⏳ Auto: ย้อนหลัง 36 เดือน"):
-            st.session_state["al_bulk_mode"] = True
-            st.success("โหมดดึงย้อนหลัง 36 เดือน พร้อมแล้ว")
+            result = get_aluminum_with_priority(mode="last36")
+            st.session_state["aluminum_result"] = result
 
     st.markdown("---")
 
-    # =========================
-    # Manual Input
-    # =========================
-    st.subheader("✍️ กรอกเอง (Manual Fallback)")
+    # ===== แสดงผลลัพธ์ =====
+    if "aluminum_result" in st.session_state:
+        result = st.session_state["aluminum_result"]
 
-    mcol1, mcol2 = st.columns(2)
-    with mcol1:
-        manual_month = st.selectbox("เดือน", list(range(1, 13)), key="al_manual_month")
-    with mcol2:
-        manual_year = st.selectbox("ปี", list(range(2020, 2035)), key="al_manual_year")
+        if isinstance(result, dict) and result.get("status") == "fallback":
+            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+            st.write("เหตุผล:", result.get("reason"))
 
-    manual_price = st.number_input(
-        "ราคาอะลูมิเนียม (บาท/ตัน)",
-        min_value=0.0,
-        step=10.0,
-        key="al_manual_price"
-    )
+            st.subheader("✍️ กรอกเอง (Manual Fallback)")
 
+            c1, c2 = st.columns(2)
+            with c1:
+                manual_month = st.selectbox("เดือน", list(range(1, 13)), key="alu_m")
+            with c2:
+                manual_year = st.selectbox("ปี", list(range(2015, 2036)), key="alu_y")
+
+            manual_price = st.number_input(
+                "ราคาอะลูมิเนียม (บาท/ตัน)",
+                min_value=0.0,
+                step=10.0
+            )
+
+            st.session_state["aluminum_manual"] = {
+                "month": manual_month,
+                "year": manual_year,
+                "price": manual_price
+            }
+
+        else:
+            if result["mode"] == "current":
+                st.success("✅ ดึงข้อมูลเดือนปัจจุบันสำเร็จ")
+                st.write(f"ราคาเฉลี่ย = {result['value']} บาท/ตัน")
+                st.session_state["aluminum_auto_single"] = result
+
+            elif result["mode"] == "last36":
+                st.success(f"✅ ดึงข้อมูลย้อนหลัง {len(result['values'])} เดือน")
+
+                df = pd.DataFrame([
+                    {"เดือน": k, "ราคา (บาท/ตัน)": v}
+                    for k, v in result["values"].items()
+                ])
+
+                st.dataframe(df)
+                st.session_state["aluminum_auto_36"] = result["values"]
+
+    # ===== บันทึก =====
     st.markdown("---")
 
-    # =========================
-    # Show Auto Result
-    # =========================
-    if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
-        st.subheader("📌 ราคาที่ดึงได้อัตโนมัติ")
-        st.write(f"{st.session_state['al_auto_price']} บาท/ตัน")
-        st.write(f"สำหรับ {st.session_state['al_month']}/{st.session_state['al_year']}")
-
-    st.markdown("---")
-    st.subheader("💾 บันทึกเข้าระบบ")
-
-    # =========================
-    # Save Auto Single Month
-    # =========================
-    if "al_auto_price" in st.session_state and st.session_state["al_auto_price"] is not None:
-        if st.button("💾 บันทึกราคาอัตโนมัติ (เดือนนี้)"):
-            price = st.session_state["al_auto_price"]
-            year = st.session_state["al_year"]
-            month = st.session_state["al_month"]
+    if "aluminum_result" in st.session_state:
+        if st.button("💾 บันทึกเข้าระบบ"):
 
             new_rows = []
-            for product in products:
-                new_rows.append({
-                    "สินค้า": product,
-                    "เดือน": month,
-                    "ปี": year,
-                    "วัสดุ": "อะลูมิเนียม",
-                    "ราคา/หน่วย": price,
-                    "ปริมาณ": 1,
-                    "ต้นทุน": price,
-                    "overhead_percent": 0,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
 
-            save_rows_to_system(new_rows)
-            st.success(f"บันทึกอะลูมิเนียม {month}/{year} เรียบร้อยแล้ว 🎉")
+            # ===== Auto เดือนเดียว =====
+            if "aluminum_auto_single" in st.session_state:
+                r = st.session_state["aluminum_auto_single"]
+                now = datetime.now()
 
-            del st.session_state["al_auto_price"]
-            st.experimental_rerun()
+                for product in products:
+                    new_rows.append({
+                        "สินค้า": product,
+                        "เดือน": now.month,
+                        "ปี": now.year,
+                        "วัสดุ": "อะลูมิเนียม",
+                        "ราคา/หน่วย": r["value"],
+                        "ปริมาณ": 1,
+                        "ต้นทุน": r["value"],
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
 
-    # =========================
-    # Auto 36 Months
-    # =========================
-    if st.session_state.get("al_bulk_mode"):
-        if st.button("🚀 เริ่มดึง + บันทึกย้อนหลัง 36 เดือน"):
-            months = get_last_n_months(36)
+            # ===== Auto 36 เดือน =====
+            elif "aluminum_auto_36" in st.session_state:
+                values = st.session_state["aluminum_auto_36"]
 
-            progress = st.progress(0)
-            status_box = st.empty()
+                for key, price in values.items():
+                    y, m = key.split("-")
+                    y = int(y)
+                    m = int(m)
 
-            all_new_rows = []
-            total = len(months)
-
-            for i, (y, m) in enumerate(months):
-                try:
-                    price = get_aluminum_monthly_avg_thb(y, m)
                     for product in products:
-                        all_new_rows.append({
+                        new_rows.append({
                             "สินค้า": product,
                             "เดือน": m,
                             "ปี": y,
@@ -714,47 +709,46 @@ elif menu == "🪙 อัปเดตราคาอะลูมิเนีย�
                             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         })
 
-                    status_box.info(f"✔ {m}/{y}: {price} บาท/ตัน")
+            # ===== Manual =====
+            elif "aluminum_manual" in st.session_state:
+                m = st.session_state["aluminum_manual"]
 
-                except Exception as e:
-                    status_box.warning(f"⚠ ข้าม {m}/{y}: {e}")
+                if m["price"] <= 0:
+                    st.error("กรุณาระบุราคาที่ถูกต้อง")
+                    st.stop()
 
-                progress.progress((i + 1) / total)
+                for product in products:
+                    new_rows.append({
+                        "สินค้า": product,
+                        "เดือน": m["month"],
+                        "ปี": m["year"],
+                        "วัสดุ": "อะลูมิเนียม",
+                        "ราคา/หน่วย": m["price"],
+                        "ปริมาณ": 1,
+                        "ต้นทุน": m["price"],
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
 
-            save_rows_to_system(all_new_rows)
+            if len(new_rows) == 0:
+                st.error("ไม่มีข้อมูลให้บันทึก")
+            else:
+                new_df = pd.DataFrame(new_rows)
+                old_df = load_data()
 
-            st.success("🎉 ดึง + บันทึกย้อนหลัง 36 เดือนเสร็จสมบูรณ์แล้ว!")
-            del st.session_state["al_bulk_mode"]
-            st.experimental_rerun()
+                if len(old_df) > 0:
+                    old_df = old_df[old_df["วัสดุ"] != "อะลูมิเนียม"]
 
-    # =========================
-    # Manual Save
-    # =========================
-    if st.button("💾 บันทึกแบบ Manual"):
-        price = st.session_state.get("al_manual_price")
-        month = st.session_state.get("al_manual_month")
-        year = st.session_state.get("al_manual_year")
+                final_df = pd.concat([old_df, new_df], ignore_index=True)
+                save_data(final_df)
 
-        if price is None or price <= 0:
-            st.error("กรุณาระบุราคาที่ถูกต้อง")
-        else:
-            new_rows = []
-            for product in products:
-                new_rows.append({
-                    "สินค้า": product,
-                    "เดือน": month,
-                    "ปี": year,
-                    "วัสดุ": "อะลูมิเนียม",
-                    "ราคา/หน่วย": price,
-                    "ปริมาณ": 1,
-                    "ต้นทุน": price,
-                    "overhead_percent": 0,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
+                for k in ["aluminum_result", "aluminum_auto_single", "aluminum_auto_36", "aluminum_manual"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
-            save_rows_to_system(new_rows)
-            st.success(f"บันทึกอะลูมิเนียม {month}/{year} เรียบร้อยแล้ว 🎉")
-            st.experimental_rerun()
+                st.success("🎉 บันทึกราคาอะลูมิเนียมเรียบร้อยแล้ว")
+                st.experimental_rerun()
+experimental_rerun()
 
 
 
