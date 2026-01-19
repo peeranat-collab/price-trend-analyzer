@@ -3,25 +3,19 @@ from datetime import datetime
 
 WEEKLY_FILE = "data/pet_weekly_raw.csv"
 
-def save_weekly_raw(weekly_df):
-    """
-    บันทึก Raw รายสัปดาห์
-    Replace ถ้าซ้ำ (ปี + สัปดาห์)
-    """
-    try:
-        old_df = pd.read_csv(WEEKLY_FILE)
-    except:
-        old_df = pd.DataFrame(columns=weekly_df.columns)
+import os
 
-    combined = pd.concat([old_df, weekly_df], ignore_index=True)
+def save_weekly_raw(df):
+    os.makedirs(os.path.dirname(WEEKLY_FILE), exist_ok=True)  # ← เพิ่มบรรทัดนี้
 
-    # Replace duplicates
-    combined = combined.sort_values(by=["ปี", "สัปดาห์"])
-    combined = combined.drop_duplicates(subset=["ปี", "สัปดาห์"], keep="last")
+    if os.path.exists(WEEKLY_FILE):
+        old = pd.read_csv(WEEKLY_FILE)
+        combined = pd.concat([old, df], ignore_index=True)
+    else:
+        combined = df.copy()
 
     combined.to_csv(WEEKLY_FILE, index=False, encoding="utf-8-sig")
 
-    return combined
 
 
 def convert_monthly_to_main_schema(monthly_df, products):
