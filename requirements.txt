@@ -10,3 +10,4 @@ requests
 playwright
 yfinance
 python-dateutil
+openpyxl
