@@ -14,6 +14,8 @@ from scrapers.yahoo_aluminum import get_aluminum_with_priority
 from scrapers.yahoo_cotton import get_cotton_with_priority
 from modules.pet_weekly_engine import normalize_weekly_pet_data
 from modules.pet_excel_loader import load_pet_excel
+from modules.pet_monthly_weighted import convert_weekly_to_monthly_weighted
+
 
 
 
@@ -955,5 +957,20 @@ elif menu == "📦 เม็ดพลาสติก PET":
             st.success(f"สร้าง Weekly Data สำเร็จ: {len(weekly_df)} แถว")
 
             st.dataframe(weekly_df.head(20))
+    if "pet_weekly_df" in st.session_state:
+
+    st.markdown("---")
+    st.subheader("📊 แปลงเป็นค่าเฉลี่ยรายเดือน (ถ่วงน้ำหนักตามจำนวนวัน)")
+
+    if st.button("แปลงเป็น Monthly Average"):
+        monthly_df = convert_weekly_to_monthly_weighted(
+            st.session_state["pet_weekly_df"]
+        )
+
+        st.session_state["pet_monthly_df"] = monthly_df
+
+        st.success(f"สร้าง Monthly Average สำเร็จ: {len(monthly_df)} เดือน")
+
+        st.dataframe(monthly_df.head(20))
 
 
