@@ -15,6 +15,7 @@ from scrapers.yahoo_cotton import get_cotton_with_priority
 from modules.pet_weekly_engine import normalize_weekly_pet_data
 from modules.pet_excel_loader import load_pet_excel
 from modules.pet_monthly_weighted import convert_weekly_to_monthly_weighted
+from modules.pet_save_layer import save_weekly_raw, convert_monthly_to_main_schema
 
 
 
@@ -972,5 +973,43 @@ elif menu == "📦 เม็ดพลาสติก PET":
         st.success(f"สร้าง Monthly Average สำเร็จ: {len(monthly_df)} เดือน")
 
         st.dataframe(monthly_df.head(20))
+
+    if "pet_monthly_df" in st.session_state:
+
+    st.markdown("---")
+    st.subheader("💾 บันทึกข้อมูล PET เข้าระบบ")
+
+    if st.button("บันทึกทั้งหมด"):
+
+        # 1) Save weekly raw
+        weekly_saved = save_weekly_raw(
+            st.session_state["pet_weekly_df"]
+        )
+
+        # 2) Convert monthly to main schema
+        new_main_rows = convert_monthly_to_main_schema(
+            st.session_state["pet_monthly_df"],
+            products
+        )
+
+        # 3) Load old main data
+        old_df = load_data()
+
+        # ลบ PET เก่าออกก่อน (Replace)
+        if len(old_df) > 0:
+            old_df = old_df[old_df["วัสดุ"] != "เม็ดพลาสติก PET"]
+
+        final_df = pd.concat([old_df, new_main_rows], ignore_index=True)
+
+        save_data(final_df)
+
+        st.success("🎉 บันทึกข้อมูล PET สำเร็จแล้ว!")
+
+        # Clear state
+        for k in ["pet_raw_preview", "pet_weekly_df", "pet_monthly_df"]:
+            if k in st.session_state:
+                del st.session_state[k]
+
+        st.experimental_rerun()
 
 
