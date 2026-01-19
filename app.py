@@ -12,6 +12,8 @@ from scrapers.aluminum_yahoo import (
 from datetime import datetime
 from scrapers.yahoo_aluminum import get_aluminum_with_priority
 from scrapers.yahoo_cotton import get_cotton_with_priority
+from scrapers.tpia_reuse_session import open_pet_page_with_session
+from scrapers.tpia_session import login_and_save_session
 
 
 
@@ -907,5 +909,28 @@ elif menu == "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)"
                 st.success("🎉 บันทึกราคาผ้าฝ้ายเรียบร้อยแล้ว")
                 st.experimental_rerun()
 
+#"🧪 ทดสอบ TPIA PET",
+elif menu == "🧪 ทดสอบ TPIA PET":
+
+    st.title("🧪 ทดสอบการเชื่อมต่อ TPIA (PET)")
+
+    st.info("ใช้สำหรับทดสอบการ Login + Session + เปิดหน้า PET ก่อนดึงข้อมูลจริง")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🔐 Login + Save Session"):
+            st.warning("ระบบจะเปิด Browser ให้คุณ Login ด้วยตัวเอง")
+            login_and_save_session()
+            st.success("บันทึก session แล้ว (ถ้า login สำเร็จ)")
+
+    with col2:
+        if st.button("🧪 ทดสอบเปิดหน้า PET ด้วย Session"):
+            st.warning("ระบบจะเปิด Browser โดยไม่ต้อง login ใหม่")
+            open_pet_page_with_session()
+            st.success("ถ้าเห็นหน้า PET แปลว่า session ใช้งานได้")
+
+    st.markdown("---")
+    st.info("ถ้าทดสอบผ่านแล้ว ผมจะเริ่มทำระบบดึงราคา PET จริงให้คุณทันที")
 
 
