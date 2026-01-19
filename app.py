@@ -12,8 +12,7 @@ from scrapers.aluminum_yahoo import (
 from datetime import datetime
 from scrapers.yahoo_aluminum import get_aluminum_with_priority
 from scrapers.yahoo_cotton import get_cotton_with_priority
-from scrapers.tpia_reuse_session import open_pet_page_with_session
-from scrapers.tpia_session import login_and_save_session
+from modules.pet_weekly_engine import normalize_weekly_pet_data
 from modules.pet_excel_loader import load_pet_excel
 
 
@@ -943,5 +942,18 @@ elif menu == "📦 เม็ดพลาสติก PET":
             st.markdown("---")
             st.info("ขั้นถัดไป: ระบบจะนำข้อมูลนี้ไปประมวลผลเป็นรายเดือนแบบถ่วงน้ำหนัก")
 
+    if "pet_raw_preview" in st.session_state:
+
+        st.markdown("---")
+        st.subheader("🔧 ประมวลผลเป็นข้อมูลรายสัปดาห์ (Replace ถ้าซ้ำ)")
+
+        if st.button("แปลงเป็น Weekly Data"):
+            weekly_df = normalize_weekly_pet_data(st.session_state["pet_raw_preview"])
+
+            st.session_state["pet_weekly_df"] = weekly_df
+
+            st.success(f"สร้าง Weekly Data สำเร็จ: {len(weekly_df)} แถว")
+
+            st.dataframe(weekly_df.head(20))
 
 
