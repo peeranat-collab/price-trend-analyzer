@@ -920,96 +920,113 @@ elif menu == "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)"
 # =========================
 elif menu == "📦 เม็ดพลาสติก PET":
 
-    st.title("📦 เม็ดพลาสติก PET — อัปโหลดข้อมูลรายสัปดาห์")
+    st.title("📦 เม็ดพลาสติก PET (รายสัปดาห์ → รายเดือนแบบถ่วงน้ำหนัก)")
 
-    st.info("รองรับไฟล์ Excel ที่มี column: ประเภท, ราคา, วันที่เริ่ม, วันที่สิ้นสุด, สัปดาห์")
+    tabs = st.tabs([
+        "1️⃣ Upload Excel",
+        "2️⃣ Weekly Normalize",
+        "3️⃣ Monthly Weighted",
+        "4️⃣ Save"
+    ])
 
-    uploaded_file = st.file_uploader("อัปโหลดไฟล์ Excel", type=["xlsx"])
+    # --------------------------
+    # TAB 1: Upload
+    # --------------------------
+    with tabs[0]:
+        st.subheader("📤 อัปโหลดไฟล์ Excel")
 
-    if uploaded_file:
-        result = load_pet_excel(uploaded_file)
+        uploaded_file = st.file_uploader("อัปโหลดไฟล์ Excel", type=["xlsx"])
 
-        if result["status"] == "error":
-            st.error(result["message"])
+        if uploaded_file:
+            result = load_pet_excel(uploaded_file)
 
+            if result["status"] == "error":
+                st.error(result["message"])
+            else:
+                pet_df = result["data"]
+                st.session_state["pet_raw_preview"] = pet_df
+
+                st.success(f"พบข้อมูล PET จำนวน {len(pet_df)} แถว")
+                st.dataframe(pet_df.head(20))
+
+                st.info("ไปขั้นตอนที่ 2: Weekly Normalize")
+
+    # --------------------------
+    # TAB 2: Weekly Normalize
+    # --------------------------
+    with tabs[1]:
+        st.subheader("📅 Normalize เป็นรายสัปดาห์")
+
+        if "pet_raw_preview" not in st.session_state:
+            st.warning("กรุณาอัปโหลดไฟล์ในขั้นตอนที่ 1 ก่อน")
         else:
-            pet_df = result["data"]
+            if st.button("แปลงเป็น Weekly Data"):
+                weekly_df = normalize_weekly_pet_data(
+                    st.session_state["pet_raw_preview"]
+                )
+                st.session_state["pet_weekly_df"] = weekly_df
 
-            st.success(f"พบข้อมูล PET จำนวน {len(pet_df)} แถว")
+                st.success(f"สร้าง Weekly Data สำเร็จ: {len(weekly_df)} แถว")
+                st.dataframe(weekly_df.head(20))
 
-            st.subheader("ตัวอย่างข้อมูล (Preview)")
-            st.dataframe(pet_df.head(20))
+                st.info("ไปขั้นตอนที่ 3: Monthly Weighted")
 
-            st.session_state["pet_raw_preview"] = pet_df
+    # --------------------------
+    # TAB 3: Monthly Weighted
+    # --------------------------
+    with tabs[2]:
+        st.subheader("📊 แปลงเป็นค่าเฉลี่ยรายเดือน (ถ่วงน้ำหนักตามวัน)")
 
-            st.markdown("---")
-            st.info("ขั้นถัดไป: ระบบจะนำข้อมูลนี้ไปประมวลผลเป็นรายเดือนแบบถ่วงน้ำหนัก")
+        if "pet_weekly_df" not in st.session_state:
+            st.warning("กรุณาทำ Weekly Normalize ในขั้นตอนที่ 2 ก่อน")
+        else:
+            if st.button("คำนวณ Monthly Weighted Average"):
+                monthly_df = convert_weekly_to_monthly_weighted(
+                    st.session_state["pet_weekly_df"]
+                )
 
-    if "pet_raw_preview" in st.session_state:
+                st.session_state["pet_monthly_df"] = monthly_df
 
-        st.markdown("---")
-        st.subheader("🔧 ประมวลผลเป็นข้อมูลรายสัปดาห์ (Replace ถ้าซ้ำ)")
+                st.success(f"สร้าง Monthly Data สำเร็จ: {len(monthly_df)} เดือน")
+                st.dataframe(monthly_df.head(20))
 
-        if st.button("แปลงเป็น Weekly Data"):
-            weekly_df = normalize_weekly_pet_data(st.session_state["pet_raw_preview"])
+                st.info("ไปขั้นตอนที่ 4: Save")
 
-            st.session_state["pet_weekly_df"] = weekly_df
+    # --------------------------
+    # TAB 4: Save
+    # --------------------------
+    with tabs[3]:
+        st.subheader("💾 บันทึกข้อมูลเข้าระบบ")
 
-            st.success(f"สร้าง Weekly Data สำเร็จ: {len(weekly_df)} แถว")
+        if "pet_monthly_df" not in st.session_state:
+            st.warning("กรุณาคำนวณ Monthly Weighted ในขั้นตอนที่ 3 ก่อน")
+        else:
+            st.success("พร้อมบันทึกข้อมูล")
 
-            st.dataframe(weekly_df.head(20))
-    if "pet_weekly_df" in st.session_state:
+            st.dataframe(st.session_state["pet_monthly_df"].head(20))
 
-        st.markdown("---")
-        st.subheader("📊 แปลงเป็นค่าเฉลี่ยรายเดือน (ถ่วงน้ำหนักตามจำนวนวัน)")
+            if st.button("💾 บันทึกทั้งหมด"):
+                # Save weekly raw
+                save_weekly_raw(st.session_state["pet_weekly_df"])
 
-    if st.button("แปลงเป็น Monthly Average"):
-        monthly_df = convert_weekly_to_monthly_weighted(
-            st.session_state["pet_weekly_df"]
-        )
+                # Convert to main schema
+                new_main_rows = convert_monthly_to_main_schema(
+                    st.session_state["pet_monthly_df"],
+                    products
+                )
 
-        st.session_state["pet_monthly_df"] = monthly_df
+                old_df = load_data()
 
-        st.success(f"สร้าง Monthly Average สำเร็จ: {len(monthly_df)} เดือน")
+                if len(old_df) > 0:
+                    old_df = old_df[old_df["วัสดุ"] != "เม็ดพลาสติก PET"]
 
-        st.dataframe(monthly_df.head(20))
+                final_df = pd.concat([old_df, new_main_rows], ignore_index=True)
+                save_data(final_df)
 
-    if "pet_monthly_df" in st.session_state:
+                # Clear states
+                for k in ["pet_raw_preview", "pet_weekly_df", "pet_monthly_df"]:
+                    if k in st.session_state:
+                        del st.session_state[k]
 
-        st.markdown("---")
-        st.subheader("💾 บันทึกข้อมูล PET เข้าระบบ")
-
-    if st.button("บันทึกทั้งหมด"):
-
-        # 1) Save weekly raw
-        weekly_saved = save_weekly_raw(
-            st.session_state["pet_weekly_df"]
-        )
-
-        # 2) Convert monthly to main schema
-        new_main_rows = convert_monthly_to_main_schema(
-            st.session_state["pet_monthly_df"],
-            products
-        )
-
-        # 3) Load old main data
-        old_df = load_data()
-
-        # ลบ PET เก่าออกก่อน (Replace)
-        if len(old_df) > 0:
-            old_df = old_df[old_df["วัสดุ"] != "เม็ดพลาสติก PET"]
-
-        final_df = pd.concat([old_df, new_main_rows], ignore_index=True)
-
-        save_data(final_df)
-
-        st.success("🎉 บันทึกข้อมูล PET สำเร็จแล้ว!")
-
-        # Clear state
-        for k in ["pet_raw_preview", "pet_weekly_df", "pet_monthly_df"]:
-            if k in st.session_state:
-                del st.session_state[k]
-
-        st.experimental_rerun()
-
-
+                st.success("🎉 บันทึกข้อมูล PET สำเร็จแล้ว!")
+                st.experimental_rerun()
