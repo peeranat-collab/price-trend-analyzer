@@ -19,7 +19,7 @@ from modules.diesel_excel_loader import load_diesel_excel
 from modules.diesel_monthly_weighted import daily_to_monthly
 from modules.diesel_save_layer import save_monthly_diesel
 from modules.wage_excel_loader import load_wage_excel
-
+from modules.wage_monthly_engine import expand_wage_to_monthly
 
 
 
