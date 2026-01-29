@@ -4,7 +4,6 @@ from datetime import datetime
 import os
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from scrapers.bangchak_priority import get_diesel_price_with_priority
 from scrapers.aluminum_yahoo import (
     get_aluminum_monthly_avg_thb,
     get_last_n_months
