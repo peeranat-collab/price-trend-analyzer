@@ -237,6 +237,7 @@ menu = st.sidebar.radio(
         "🧲 อัปเดตราคาอะลูมิเนียม",
         "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)",
         "📦 เม็ดพลาสติก PET",
+        "👷 อัปเดตค่าแรงขั้นต่ำ",
         "Export"
     ]
 )
@@ -1002,3 +1003,60 @@ elif menu == "📦 เม็ดพลาสติก PET":
 
                         st.success("🎉 บันทึกข้อมูล PET สำเร็จแล้ว!")
                         st.rerun()
+elif menu == "👷 อัปเดตค่าแรงขั้นต่ำ":
+
+st.title("👷 ค่าแรงขั้นต่ำ (Upload Excel)")
+st.info("อัปโหลดไฟล์ Excel (คอลัมน์: วันที่, ค่าแรงขั้นต่ำ)")
+
+uploaded_file = st.file_uploader(
+    "📤 อัปโหลดไฟล์ค่าแรง",
+    type=["xlsx"]
+)
+
+if uploaded_file:
+    try:
+        df_raw = load_wage_excel(uploaded_file)
+        st.subheader("📄 ข้อมูลต้นทาง")
+        st.dataframe(df_raw, use_container_width=True)
+
+        if st.button("📊 สร้างค่าแรงรายเดือน"):
+            df_monthly = expand_wage_to_monthly(df_raw)
+            st.session_state["wage_monthly"] = df_monthly
+
+            st.subheader("📊 ค่าแรงรายเดือน")
+            st.dataframe(df_monthly, use_container_width=True)
+
+    except Exception as e:
+        st.error(str(e))
+
+if "wage_monthly" in st.session_state:
+    if st.button("💾 บันทึกเข้าระบบ"):
+        rows = []
+
+        for _, r in st.session_state["wage_monthly"].iterrows():
+            for product in products:
+                rows.append({
+                    "สินค้า": product,
+                    "เดือน": int(r["month"]),
+                    "ปี": int(r["year"]),
+                    "วัสดุ": "ค่าแรง",
+                    "ราคา/หน่วย": float(r["wage"]),
+                    "ปริมาณ": 1,
+                    "ต้นทุน": float(r["wage"]),
+                    "overhead_percent": 0,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+
+        new_df = pd.DataFrame(rows)
+        old_df = load_data()
+
+        if len(old_df) > 0:
+            old_df = old_df[old_df["วัสดุ"] != "ค่าแรง"]
+
+        final_df = pd.concat([old_df, new_df], ignore_index=True)
+        save_data(final_df)
+
+        del st.session_state["wage_monthly"]
+            st.success("🎉 บันทึกค่าแรงเรียบร้อยแล้ว")
+            st.rerun()
+
