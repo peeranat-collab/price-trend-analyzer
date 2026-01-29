@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 
 def load_diesel_excel(uploaded_file) -> pd.DataFrame:
     df = pd.read_excel(uploaded_file)
@@ -9,22 +10,35 @@ def load_diesel_excel(uploaded_file) -> pd.DataFrame:
         "ไฮดีเซล": "price"
     })
 
-    required_cols = {"date", "price"}
-    if not required_cols.issubset(df.columns):
+    if not {"date", "price"}.issubset(df.columns):
         raise ValueError("ไฟล์ต้องมีคอลัมน์ 'วันที่' และ 'ไฮดีเซล'")
 
-    # ===== FIX พ.ศ. → ค.ศ. (ปลอดภัย) =====
-    df["date"] = df["date"].astype(str)
+    def normalize_date(val):
+        # ===== Case 1: Excel / pandas datetime =====
+        if isinstance(val, (pd.Timestamp, datetime)):
+            year = val.year
+            if year > 2400:  # พ.ศ.
+                year -= 543
+            return pd.Timestamp(year=year, month=val.month, day=val.day)
 
-    def convert_be_to_ad(d):
-        # รูปแบบ: 29/12/2566 หรือ 29-12-2566
-        parts = d.replace("-", "/").split("/")
-        day = int(parts[0])
-        month = int(parts[1])
-        year = int(parts[2]) - 543
-        return pd.Timestamp(year=year, month=month, day=day)
+        # ===== Case 2: string =====
+        s = str(val).strip()
 
-    df["date"] = df["date"].apply(convert_be_to_ad)
+        # ตัดเวลาออกก่อน
+        if " " in s:
+            s = s.split(" ")[0]
+
+        s = s.replace("-", "/")
+        d, m, y = s.split("/")
+
+        year = int(y)
+        if year > 2400:
+            year -= 543
+
+        return pd.Timestamp(year=year, month=int(m), day=int(d))
+
+    # Apply normalize
+    df["date"] = df["date"].apply(normalize_date)
 
     # Price
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
