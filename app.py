@@ -16,7 +16,9 @@ from modules.pet_weekly_engine import normalize_weekly_pet_data
 from modules.pet_excel_loader import load_pet_excel
 from modules.pet_monthly_weighted import convert_weekly_to_monthly_weighted
 from modules.pet_save_layer import save_weekly_raw, convert_monthly_to_main_schema
-
+from modules.diesel_excel_loader import load_diesel_excel
+from modules.diesel_monthly_weighted import daily_to_monthly
+from modules.diesel_save_layer import save_monthly_diesel
 
 
 
@@ -495,114 +497,85 @@ elif menu == "Export":
 # 🔄 อัปเดตราคาน้ำมัน (ดีเซล)
 # =========================
 elif menu == "🔄 อัปเดตราคาน้ำมัน (ดีเซล)":
-    st.title("🔄 อัปเดตราคาน้ำมันดีเซล (Bangchak)")
 
-    # ====== แสดงสถานะ Auto ล่าสุด ======
-    log_file = "auto/auto_log.txt"
+    st.title("🛢️ ราคาน้ำมันดีเซล (Upload Excel)")
 
-    if os.path.exists(log_file):
-        with open(log_file, "r", encoding="utf-8") as f:
-            logs = f.readlines()[-5:]
+    st.info(
+        "อัปโหลดไฟล์ Excel ราคาน้ำมันดีเซล (คอลัมน์: วันที่, ไฮดีเซล)\n"
+        "ระบบจะคำนวณค่าเฉลี่ยรายเดือน และบันทึกเข้าระบบอัตโนมัติ"
+    )
 
-        st.subheader("📜 สถานะ Auto ล่าสุด")
-        for l in logs:
-            if "FAILED" in l:
-                st.error(l.strip())
-            elif "SUCCESS" in l:
-                st.success(l.strip())
-            else:
-                st.info(l.strip())
+    uploaded_file = st.file_uploader(
+        "📤 อัปโหลดไฟล์ Excel ราคาน้ำมัน",
+        type=["xlsx"]
+    )
 
-    st.info("ระบบจะดึงราคาดีเซลจาก Bangchak และคำนวณค่าเฉลี่ยรายเดือน")
+    # ===== Step 1: Load =====
+    if uploaded_file:
+        try:
+            df_daily = load_diesel_excel(uploaded_file)
+            st.session_state["diesel_daily"] = df_daily
 
-    col1, col2 = st.columns(2)
-    with col1:
-        sel_month = st.selectbox("เลือกเดือน", list(range(1, 13)))
-    with col2:
-        sel_year = st.selectbox("เลือกปี", list(range(2020, 2035)))
+            st.subheader("📄 ข้อมูลรายวัน (Preview)")
+            st.dataframe(df_daily.head(20), use_container_width=True)
 
-    if st.button("ดึงข้อมูลจาก Bangchak"):
-        result = get_diesel_price_with_priority(sel_year, sel_month)
+            st.success(f"โหลดข้อมูลสำเร็จ {len(df_daily)} แถว")
 
-        st.session_state["diesel_fetch_result"] = result
-        st.session_state["diesel_month"] = sel_month
-        st.session_state["diesel_year"] = sel_year
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาด: {e}")
 
-    # ====== แสดงผลลัพธ์ ======
-    if "diesel_fetch_result" in st.session_state:
-        result = st.session_state["diesel_fetch_result"]
-
-        if isinstance(result, dict) and result.get("status") == "fallback":
-            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
-            st.write("เหตุผล:", result.get("reason"))
-
-            st.subheader("กรอกราคาดีเซลเอง (Fallback Mode)")
-            manual_price = st.number_input(
-                "ราคาดีเซลเฉลี่ย (บาท/ลิตร)",
-                min_value=0.0,
-                step=0.1
-            )
-
-            st.session_state["diesel_manual_price"] = manual_price
-
-        else:
-            st.success("✅ ดึงข้อมูลสำเร็จ")
-            st.write(f"ค่าเฉลี่ยราคาดีเซล = {result} บาท/ลิตร")
-            st.session_state["diesel_auto_price"] = result
-
-
-    # ====== ปุ่มบันทึก ======
     st.markdown("---")
 
-    if "diesel_fetch_result" in st.session_state:
+    # ===== Step 2: Monthly =====
+    if "diesel_daily" in st.session_state:
+        if st.button("📊 คำนวณค่าเฉลี่ยรายเดือน"):
+            monthly_df = daily_to_monthly(st.session_state["diesel_daily"])
+            st.session_state["diesel_monthly"] = monthly_df
+
+            st.subheader("📊 ค่าเฉลี่ยรายเดือน (บาท/ลิตร)")
+            st.dataframe(monthly_df, use_container_width=True)
+
+    st.markdown("---")
+
+    # ===== Step 3: Save =====
+    if "diesel_monthly" in st.session_state:
         if st.button("💾 บันทึกเข้าระบบ"):
-            month = st.session_state.get("diesel_month")
-            year = st.session_state.get("diesel_year")
+            monthly_df = st.session_state["diesel_monthly"]
 
-            if "diesel_auto_price" in st.session_state:
-                final_price = st.session_state["diesel_auto_price"]
-            else:
-                final_price = st.session_state.get("diesel_manual_price")
+            new_rows = []
 
-            if final_price is None or final_price <= 0:
-                st.error("กรุณาระบุราคาดีเซลที่ถูกต้อง")
-            else:
-                new_rows = []
-
+            for _, row in monthly_df.iterrows():
                 for product in products:
                     new_rows.append({
                         "สินค้า": product,
-                        "เดือน": month,
-                        "ปี": year,
-                        "วัสดุ": "ค่าขนส่ง (น้ำมันดีเซล)",
-                        "ราคา/หน่วย": final_price,
+                        "เดือน": int(row["month"]),
+                        "ปี": int(row["year"]),
+                        "วัสดุ": "น้ำมันดีเซล",
+                        "ราคา/หน่วย": float(row["avg_price"]),
                         "ปริมาณ": 1,
-                        "ต้นทุน": final_price,
+                        "ต้นทุน": float(row["avg_price"]),
                         "overhead_percent": 0,
                         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     })
 
-                new_df = pd.DataFrame(new_rows)
-                old_df = load_data()
+            new_df = pd.DataFrame(new_rows)
+            old_df = load_data()
 
-                if len(old_df) > 0:
-                    old_df = old_df[
-                        ~(
-                            (old_df["วัสดุ"] == "ค่าขนส่ง (น้ำมันดีเซล)") &
-                            (old_df["เดือน"] == month) &
-                            (old_df["ปี"] == year)
-                        )
-                    ]
+            if len(old_df) > 0:
+                old_df = old_df[old_df["วัสดุ"] != "น้ำมันดีเซล"]
 
-                final_df = pd.concat([old_df, new_df], ignore_index=True)
-                save_data(final_df)
+            final_df = pd.concat([old_df, new_df], ignore_index=True)
+            save_data(final_df)
 
-                for k in ["diesel_fetch_result", "diesel_auto_price", "diesel_manual_price"]:
-                    if k in st.session_state:
-                        del st.session_state[k]
+            # Clear session
+            for k in ["diesel_daily", "diesel_monthly"]:
+                if k in st.session_state:
+                    del st.session_state[k]
 
-                st.success("บันทึกราคาน้ำมันดีเซลเข้าระบบเรียบร้อยแล้ว 🎉")
-                st.experimental_rerun()
+            st.success("🎉 บันทึกราคาน้ำมันดีเซลเรียบร้อยแล้ว")
+            st.experimental_rerun()
+
+
 # =========================
 # 🧲 อัปเดตราคาอะลูมิเนียม (Yahoo Finance)
 # =========================
