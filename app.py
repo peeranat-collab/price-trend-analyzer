@@ -386,27 +386,6 @@ for mat, w in weights.items():
         "Impact ต่อราคา (บาท)": round(impact_value, 2)
     })
 
-
-        price_now = get_price(df, mat, sel_year, sel_month)
-        price_prev = get_price(df, mat, base_year, sel_month)
-
-        if price_now is None or price_prev is None:
-            continue
-
-        yoy_pct = (price_now - price_prev) / price_prev * 100
-        impact_pct = yoy_pct * (w / 100)
-        impact_value = base_product_price * (impact_pct / 100)
-
-        rows.append({
-            "วัสดุ": mat,
-            f"ราคา {base_year}": round(price_prev, 2),
-            f"ราคา {sel_year}": round(price_now, 2),
-            "YoY %": round(yoy_pct, 2),
-            "สัดส่วน (%)": w,
-            "Impact ต่อสินค้า (%)": round(impact_pct, 2),
-            "Impact ต่อราคา (บาท)": round(impact_value, 2)
-        })
-
     result_df = pd.DataFrame(rows)
 
     if len(result_df) == 0:
