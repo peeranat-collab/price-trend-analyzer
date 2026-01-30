@@ -443,8 +443,8 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
         "Impact ต่อราคา (บาท)": round(impact_value, 2) if isinstance(impact_value, float) else "-"
     })
 
-result_df = pd.DataFrame(rows)
-st.dataframe(result_df, use_container_width=True)
+    result_df = pd.DataFrame(rows)
+    st.dataframe(result_df, use_container_width=True)
 
 
     # =========================
