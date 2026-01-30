@@ -65,6 +65,16 @@ def load_data():
             "overhead_percent", "timestamp"
         ])
 
+def get_price(df, material, year, month):
+    row = df[
+        (df["วัสดุ"] == material) &
+        (df["ปี"] == year) &
+        (df["เดือน"] == month)
+    ]
+    if len(row) == 0:
+        return None
+    return row["ราคา/หน่วย"].mean()
+
 def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
 
