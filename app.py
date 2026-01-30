@@ -410,44 +410,42 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     rows = []
 
-    rows = []
+    for mat in materials:
+        weight = weights.get(mat, 0)
 
-    for mat, w in weights.items():
-        if w <= 0:
-            continue
+    # แสดงเฉพาะวัสดุที่มี % > 0
+    if weight <= 0:
+        continue
 
     price_now = get_price(df, mat, sel_year, sel_month)
     price_prev = get_price(df, mat, base_year, sel_month)
 
-    # ---- กรณีมีข้อมูลครบ ----
+    yoy_pct = None
+    impact_pct = None
+    impact_value = None
+
     if price_now is not None and price_prev is not None:
         yoy_pct = (price_now - price_prev) / price_prev * 100
-        impact_pct = yoy_pct * (w / 100)
-        impact_value = base_product_price * (impact_pct / 100)
-
-    # ---- กรณีไม่มีข้อมูลราคา ----
+        impact_pct = yoy_pct * (weight / 100)
+        impact_value = impact_pct * base_price / 100  # base_price = ราคาสินค้าปีที่แล้ว
     else:
-        yoy_pct = 0.0
-        impact_pct = 0.0
-        impact_value = 0.0
+        yoy_pct = "-"
+        impact_pct = "-"
+        impact_value = "-"
 
     rows.append({
         "วัสดุ": mat,
-        f"ราคา {base_year}": "-" if price_prev is None else round(price_prev, 2),
-        f"ราคา {sel_year}": "-" if price_now is None else round(price_now, 2),
-        "YoY %": round(yoy_pct, 2),
-        "สัดส่วน (%)": w,
-        "Impact ต่อสินค้า (%)": round(impact_pct, 2),
-        "Impact ต่อราคา (บาท)": round(impact_value, 2)
+        f"ราคา {base_year}": round(price_prev, 2) if price_prev else "-",
+        f"ราคา {sel_year}": round(price_now, 2) if price_now else "-",
+        "YoY %": round(yoy_pct, 2) if isinstance(yoy_pct, float) else "-",
+        "สัดส่วน (%)": weight,
+        "Impact ต่อสินค้า (%)": round(impact_pct, 2) if isinstance(impact_pct, float) else "-",
+        "Impact ต่อราคา (บาท)": round(impact_value, 2) if isinstance(impact_value, float) else "-"
     })
 
-    result_df = pd.DataFrame(rows)
+result_df = pd.DataFrame(rows)
+st.dataframe(result_df, use_container_width=True)
 
-    if len(result_df) == 0:
-        st.error("ไม่พบข้อมูลราคาสำหรับเดือนที่เลือก")
-        st.stop()
-
-    st.dataframe(result_df, use_container_width=True)
 
     # =========================
     # 5️⃣ Summary
