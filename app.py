@@ -246,20 +246,75 @@ menu = st.sidebar.radio(
     ]
 )
 
-# =========================
-# Dashboard
-# =========================
 if menu == "Dashboard":
-    st.title("📊 Dashboard")
-    if len(df_data) == 0:
-        st.info("ยังไม่มีข้อมูล")
-    else:
-        st.subheader("Latest Records")
-        st.dataframe(df_data.tail(10), use_container_width=True)
+    st.title("📊 Dashboard – ตรวจสอบข้อมูลราคาในระบบ")
 
-        st.subheader("Total Cost by Product")
-        summary = df_data.groupby("สินค้า")["ต้นทุน"].sum()
-        st.bar_chart(summary)
+    df = load_data()
+
+    if len(df) == 0:
+        st.warning("ยังไม่มีข้อมูลในระบบ")
+        st.stop()
+
+    # -------------------------
+    # เลือกปี (default = ปีปัจจุบัน)
+    # -------------------------
+    years = sorted(df["ปี"].unique(), reverse=True)
+    current_year = datetime.now().year
+    default_year = current_year if current_year in years else years[0]
+
+    sel_year = st.selectbox(
+        "เลือกปี",
+        years,
+        index=years.index(default_year)
+    )
+
+    # -------------------------
+    # Mapping ชื่อคอลัมน์ที่แสดง ↔ ชื่อวัสดุในระบบ
+    # -------------------------
+    material_map = {
+        "ราคาเม็ดพลาสติก": "เม็ดพลาสติก PET",
+        "ราคาฝ้าย": "ผ้าฝ้าย (Cotton)",
+        "ราคาอะลูมิเนียม": "อะลูมิเนียม",
+        "ค่าแรง": "ค่าแรง",
+        "ราคาน้ำมัน": "น้ำมันดีเซล"
+    }
+
+    # -------------------------
+    # สร้างตาราง เดือน x วัสดุ
+    # -------------------------
+    table = []
+
+    for month in range(1, 13):
+        row = {"เดือน": month}
+
+        for col_name, material in material_map.items():
+            price = df[
+                (df["ปี"] == sel_year) &
+                (df["เดือน"] == month) &
+                (df["วัสดุ"] == material)
+            ]["ราคา/หน่วย"].mean()
+
+            row[col_name] = "-" if pd.isna(price) else round(price, 2)
+
+        table.append(row)
+
+    matrix_df = pd.DataFrame(table)
+
+    st.subheader(f"📅 ตารางราคาวัสดุ ปี {sel_year}")
+    st.dataframe(matrix_df, use_container_width=True)
+
+    # -------------------------
+    # สรุปความครบของข้อมูล
+    # -------------------------
+    st.markdown("### 📌 สถานะข้อมูลรายวัสดุ")
+
+    summary = {
+        col: f"{matrix_df[col].ne('-').sum()}/12 เดือน"
+        for col in material_map.keys()
+    }
+
+    st.json(summary)
+
 
 elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
