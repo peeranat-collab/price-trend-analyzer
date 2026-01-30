@@ -312,11 +312,11 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     st.subheader("3️⃣ โครงสร้างต้นทุน (%)")
 
     materials = [
-        "น้ำมันดีเซล",
+        "เม็ดพลาสติก PET",
         "อะลูมิเนียม",
         "ผ้าฝ้าย (Cotton)",
-        "เม็ดพลาสติก PET",
-        "ค่าแรง"
+        "ค่าแรง",
+        "น้ำมันดีเซล"
     ]
 
     weights = {}
@@ -355,9 +355,37 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     rows = []
 
-    for mat, w in weights.items():
-        if w <= 0:
-            continue
+    rows = []
+
+for mat, w in weights.items():
+    if w <= 0:
+        continue
+
+    price_now = get_price(df, mat, sel_year, sel_month)
+    price_prev = get_price(df, mat, base_year, sel_month)
+
+    # ---- กรณีมีข้อมูลครบ ----
+    if price_now is not None and price_prev is not None:
+        yoy_pct = (price_now - price_prev) / price_prev * 100
+        impact_pct = yoy_pct * (w / 100)
+        impact_value = base_product_price * (impact_pct / 100)
+
+    # ---- กรณีไม่มีข้อมูลราคา ----
+    else:
+        yoy_pct = 0.0
+        impact_pct = 0.0
+        impact_value = 0.0
+
+    rows.append({
+        "วัสดุ": mat,
+        f"ราคา {base_year}": "-" if price_prev is None else round(price_prev, 2),
+        f"ราคา {sel_year}": "-" if price_now is None else round(price_now, 2),
+        "YoY %": round(yoy_pct, 2),
+        "สัดส่วน (%)": w,
+        "Impact ต่อสินค้า (%)": round(impact_pct, 2),
+        "Impact ต่อราคา (บาท)": round(impact_value, 2)
+    })
+
 
         price_now = get_price(df, mat, sel_year, sel_month)
         price_prev = get_price(df, mat, base_year, sel_month)
