@@ -357,9 +357,9 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     rows = []
 
-for mat, w in weights.items():
-    if w <= 0:
-        continue
+    for mat, w in weights.items():
+        if w <= 0:
+            continue
 
     price_now = get_price(df, mat, sel_year, sel_month)
     price_prev = get_price(df, mat, base_year, sel_month)
