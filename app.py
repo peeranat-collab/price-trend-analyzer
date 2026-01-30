@@ -417,31 +417,31 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
         if weight <= 0:
             continue
 
-    price_now = get_price(df, mat, sel_year, sel_month)
-    price_prev = get_price(df, mat, base_year, sel_month)
+        price_now = get_price(df, mat, sel_year, sel_month)
+        price_prev = get_price(df, mat, base_year, sel_month)
 
-    yoy_pct = None
-    impact_pct = None
-    impact_value = None
+        yoy_pct = None
+        impact_pct = None
+        impact_value = None
 
-    if price_now is not None and price_prev is not None:
-        yoy_pct = (price_now - price_prev) / price_prev * 100
-        impact_pct = yoy_pct * (weight / 100)
-        impact_value = impact_pct * base_price / 100  # base_price = ราคาสินค้าปีที่แล้ว
-    else:
-        yoy_pct = "-"
-        impact_pct = "-"
-        impact_value = "-"
+        if price_now is not None and price_prev is not None:
+            yoy_pct = (price_now - price_prev) / price_prev * 100
+            impact_pct = yoy_pct * (weight / 100)
+            impact_value = impact_pct * base_product_price / 100  # base_product_price = ราคาสินค้าปีที่แล้ว
+        else:
+            yoy_pct = "-"
+            impact_pct = "-"
+            impact_value = "-"
 
-    rows.append({
-        "วัสดุ": mat,
-        f"ราคา {base_year}": round(price_prev, 2) if price_prev else "-",
-        f"ราคา {sel_year}": round(price_now, 2) if price_now else "-",
-        "YoY %": round(yoy_pct, 2) if isinstance(yoy_pct, float) else "-",
-        "สัดส่วน (%)": weight,
-        "Impact ต่อสินค้า (%)": round(impact_pct, 2) if isinstance(impact_pct, float) else "-",
-        "Impact ต่อราคา (บาท)": round(impact_value, 2) if isinstance(impact_value, float) else "-"
-    })
+        rows.append({
+            "วัสดุ": mat,
+            f"ราคา {base_year}": round(price_prev, 2) if price_prev else "-",
+            f"ราคา {sel_year}": round(price_now, 2) if price_now else "-",
+            "YoY %": round(yoy_pct, 2) if isinstance(yoy_pct, float) else "-",
+            "สัดส่วน (%)": weight,
+            "Impact ต่อสินค้า (%)": round(impact_pct, 2) if isinstance(impact_pct, float) else "-",
+            "Impact ต่อราคา (บาท)": round(impact_value, 2) if isinstance(impact_value, float) else "-"
+        })
 
     result_df = pd.DataFrame(rows)
     st.dataframe(result_df, use_container_width=True)
