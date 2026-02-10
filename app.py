@@ -77,6 +77,25 @@ def get_price(df, material, year, month):
         return None
     return row["ราคา/หน่วย"].mean()
 
+def get_price_with_fallback(df, material, year, month):
+    """
+    ดึงราคาวัสดุรายเดือน
+    ถ้าเดือนไม่มีข้อมูล → ใช้เดือนก่อนหน้าที่ใกล้ที่สุด
+    """
+    for m in range(month, 0, -1):  # ไล่จากเดือนที่เลือก ย้อนกลับ
+        price = df[
+            (df["วัสดุ"] == material) &
+            (df["ปี"] == year) &
+            (df["เดือน"] == m)
+        ]["ราคา/หน่วย"].mean()
+
+        if not pd.isna(price):
+            return price
+
+    return None  # ไม่มีข้อมูลทั้งปี
+
+
+
 def save_data(df):
     df.to_csv(DATA_FILE, index=False, encoding="utf-8-sig")
 
@@ -433,8 +452,9 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
         if weight <= 0:
             continue
 
-        price_now = get_price(df, mat, sel_year, sel_month)
-        price_prev = get_price(df, mat, base_year, sel_month)
+        price_now = get_price_with_fallback(df, mat, sel_year, sel_month)
+        price_prev = get_price_with_fallback(df, mat, base_year, sel_month)
+
 
         yoy_pct = None
         impact_pct = None
