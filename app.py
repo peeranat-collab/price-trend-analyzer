@@ -1461,20 +1461,20 @@ elif menu == "➕ วัสดุอื่นๆ":
             df_raw = pd.read_excel(uploaded_file)
 
             # แปลงวันที่
-                df_raw["วันที่"] = pd.to_datetime(
-        df_raw["วันที่"],
-        errors="coerce"
-    )
+            df_raw["วันที่"] = pd.to_datetime(
+            df_raw["วันที่"],
+            errors="coerce"
+        )
 
-    # drop วันที่ที่แปลงไม่ได้
-    df_raw = df_raw.dropna(subset=["วันที่"])
+        # drop วันที่ที่แปลงไม่ได้
+        df_raw = df_raw.dropna(subset=["วันที่"])
 
-    # แปลง พ.ศ. → ค.ศ.
-    mask_be = df_raw["วันที่"].dt.year > 2400
-    df_raw.loc[mask_be, "วันที่"] = (
-        df_raw.loc[mask_be, "วันที่"]
-        - pd.DateOffset(years=543)
-    )
+        # แปลง พ.ศ. → ค.ศ.
+        mask_be = df_raw["วันที่"].dt.year > 2400
+        df_raw.loc[mask_be, "วันที่"] = (
+            df_raw.loc[mask_be, "วันที่"]
+            - pd.DateOffset(years=543)
+        )
             df_raw["ปี"] = df_raw["วันที่"].dt.year
             df_raw["เดือน"] = df_raw["วันที่"].dt.month
 
