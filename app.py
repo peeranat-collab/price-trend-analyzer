@@ -20,6 +20,8 @@ from modules.diesel_monthly_weighted import daily_to_monthly
 from modules.diesel_save_layer import save_monthly_diesel
 from modules.wage_excel_loader import load_wage_excel
 from modules.wage_monthly_engine import expand_wage_to_monthly
+from scrapers.yahoo_steel_hrc import get_hrc_with_priority
+
 
 
 
@@ -240,6 +242,7 @@ menu = st.sidebar.radio(
         "วิเคราะห์ต้นทุน (YoY Impact)",
         "🔄 อัปเดตราคาน้ำมัน (ดีเซล)",
         "🧲 อัปเดตราคาอะลูมิเนียม",
+        "🏗️ อัปเดตราคาเหล็ก (HRC)",
         "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)",
         "📦 เม็ดพลาสติก PET",
         "👷 อัปเดตค่าแรงขั้นต่ำ",
@@ -966,6 +969,133 @@ elif menu == "🧲 อัปเดตราคาอะลูมิเนีย�
 
                 st.success("🎉 บันทึกราคาอะลูมิเนียมเรียบร้อยแล้ว")
                 st.rerun()
+
+elif menu == "🏗️ อัปเดตราคาเหล็ก (HRC)":
+
+    st.title("🏗️ ราคาเหล็ก (Hot Rolled Coil – HRC=F)")
+    st.info("ดึงราคาจาก Yahoo Finance (USD → บาท/ตัน)")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("🔄 Auto: เดือนปัจจุบัน"):
+            result = get_hrc_with_priority(mode="current")
+            st.session_state["hrc_result"] = result
+
+    with col2:
+        if st.button("⏳ Auto: ย้อนหลัง 36 เดือน"):
+            result = get_hrc_with_priority(mode="last36")
+            st.session_state["hrc_result"] = result
+
+    st.markdown("---")
+
+    # ===== แสดงผล =====
+    if "hrc_result" in st.session_state:
+        result = st.session_state["hrc_result"]
+
+        if result.get("status") == "fallback":
+            st.warning("⚠ ไม่สามารถดึงข้อมูลอัตโนมัติได้")
+            st.write("เหตุผล:", result.get("reason"))
+
+            st.subheader("✍️ กรอกเอง (Manual)")
+            m1, m2 = st.columns(2)
+            with m1:
+                manual_month = st.selectbox("เดือน", list(range(1, 13)))
+            with m2:
+                manual_year = st.selectbox("ปี", list(range(2015, 2036)))
+
+            manual_price = st.number_input(
+                "ราคาเหล็ก (บาท/ตัน)",
+                min_value=0.0,
+                step=100.0
+            )
+
+            st.session_state["hrc_manual"] = {
+                "month": manual_month,
+                "year": manual_year,
+                "price": manual_price
+            }
+
+        else:
+            if result["mode"] == "current":
+                st.success(f"ราคาเฉลี่ย ≈ {result['value']} บาท/ตัน")
+                st.session_state["hrc_auto_single"] = result
+
+            elif result["mode"] == "last36":
+                df = pd.DataFrame([
+                    {"เดือน": k, "ราคา (บาท/ตัน)": v}
+                    for k, v in result["values"].items()
+                ])
+                st.dataframe(df)
+                st.session_state["hrc_auto_36"] = result["values"]
+
+    # ===== Save =====
+    st.markdown("---")
+
+    if "hrc_result" in st.session_state:
+        if st.button("💾 บันทึกเข้าระบบ"):
+            rows = []
+
+            if "hrc_auto_single" in st.session_state:
+                now = datetime.now()
+                price = st.session_state["hrc_auto_single"]["value"]
+
+                for p in products:
+                    rows.append({
+                        "สินค้า": p,
+                        "เดือน": now.month,
+                        "ปี": now.year,
+                        "วัสดุ": "เหล็ก",
+                        "ราคา/หน่วย": price,
+                        "ปริมาณ": 1,
+                        "ต้นทุน": price,
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+            elif "hrc_auto_36" in st.session_state:
+                for key, price in st.session_state["hrc_auto_36"].items():
+                    y, m = key.split("-")
+                    for p in products:
+                        rows.append({
+                            "สินค้า": p,
+                            "เดือน": int(m),
+                            "ปี": int(y),
+                            "วัสดุ": "เหล็ก",
+                            "ราคา/หน่วย": price,
+                            "ปริมาณ": 1,
+                            "ต้นทุน": price,
+                            "overhead_percent": 0,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+            elif "hrc_manual" in st.session_state:
+                m = st.session_state["hrc_manual"]
+                for p in products:
+                    rows.append({
+                        "สินค้า": p,
+                        "เดือน": m["month"],
+                        "ปี": m["year"],
+                        "วัสดุ": "เหล็ก",
+                        "ราคา/หน่วย": m["price"],
+                        "ปริมาณ": 1,
+                        "ต้นทุน": m["price"],
+                        "overhead_percent": 0,
+                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    })
+
+            if rows:
+                new_df = pd.DataFrame(rows)
+                old_df = load_data()
+                old_df = old_df[old_df["วัสดุ"] != "เหล็ก"]
+                final_df = pd.concat([old_df, new_df], ignore_index=True)
+                save_data(final_df)
+
+                st.success("🎉 บันทึกราคาเหล็กเรียบร้อยแล้ว")
+                st.session_state.clear()
+                st.stop()
+
+
 elif menu == "🧵 อัปเดตราคาผ้าฝ้าย (Cotton)":
 
     st.title("🧵 ราคาผ้าฝ้าย (Cotton – Yahoo Finance)")
