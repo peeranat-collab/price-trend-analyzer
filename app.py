@@ -426,7 +426,7 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     rows = []
 
-    for mat in materials:
+    for mat in all_materials:
         weight = weights.get(mat, 0)
 
     # แสดงเฉพาะวัสดุที่มี % > 0
