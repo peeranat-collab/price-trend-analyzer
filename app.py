@@ -1457,81 +1457,80 @@ elif menu == "➕ วัสดุอื่นๆ":
     st.caption("รูปแบบไฟล์: คอลัมน์ = วันที่ | ราคา")
 
     if uploaded_file and material_name:
-    try:
-        df_raw = pd.read_excel(uploaded_file)
+        try:
+            df_raw = pd.read_excel(uploaded_file)
 
         # =========================
         # แปลงวันที่ (รองรับ พ.ศ.)
         # =========================
-        df_raw["วันที่"] = pd.to_datetime(
-            df_raw["วันที่"],
-            errors="coerce"
-        )
+            df_raw["วันที่"] = pd.to_datetime(
+                df_raw["วันที่"],
+                errors="coerce"
+            )
 
         # ลบแถวที่วันที่พัง
-        df_raw = df_raw.dropna(subset=["วันที่"])
+            df_raw = df_raw.dropna(subset=["วันที่"])
 
         # แปลง พ.ศ. → ค.ศ.
-        mask_be = df_raw["วันที่"].dt.year > 2400
-        df_raw.loc[mask_be, "วันที่"] = (
-            df_raw.loc[mask_be, "วันที่"]
-            - pd.DateOffset(years=543)
-        )
+            mask_be = df_raw["วันที่"].dt.year > 2400
+            df_raw.loc[mask_be, "วันที่"] = (
+                df_raw.loc[mask_be, "วันที่"]
+                - pd.DateOffset(years=543)
+            )
 
         # =========================
         # แตกปี / เดือน
         # =========================
-        df_raw["ปี"] = df_raw["วันที่"].dt.year
-        df_raw["เดือน"] = df_raw["วันที่"].dt.month
+            df_raw["ปี"] = df_raw["วันที่"].dt.year
+            df_raw["เดือน"] = df_raw["วันที่"].dt.month
 
         # =========================
         # ค่าเฉลี่ยรายเดือน
         # =========================
-        monthly = (
-            df_raw
-            .groupby(["ปี", "เดือน"])["ราคา"]
-            .mean()
-            .reset_index()
-        )
+            monthly = (
+                df_raw
+                .groupby(["ปี", "เดือน"])["ราคา"]
+                .mean()
+                .reset_index()
+            )
 
-        st.subheader("📊 ตัวอย่างข้อมูลรายเดือน")
-        st.dataframe(monthly.head(), use_container_width=True)
+            st.subheader("📊 ตัวอย่างข้อมูลรายเดือน")
+            st.dataframe(monthly.head(), use_container_width=True)
 
         # =========================
         # Save
         # =========================
-        if st.button("💾 บันทึกเข้าระบบ"):
-            rows = []
+            if st.button("💾 บันทึกเข้าระบบ"):
+                rows = []
 
-            for _, r in monthly.iterrows():
-                for product in products:
-                    rows.append({
-                        "สินค้า": product,
-                        "เดือน": int(r["เดือน"]),
-                        "ปี": int(r["ปี"]),
-                        "วัสดุ": material_name,
-                        "ราคา/หน่วย": float(r["ราคา"]),
-                        "ปริมาณ": 1,
-                        "ต้นทุน": float(r["ราคา"]),
-                        "overhead_percent": 0,
-                        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                for _, r in monthly.iterrows():
+                    for product in products:
+                        rows.append({
+                            "สินค้า": product,
+                            "เดือน": int(r["เดือน"]),
+                            "ปี": int(r["ปี"]),
+                            "วัสดุ": material_name,
+                            "ราคา/หน่วย": float(r["ราคา"]),
+                            "ปริมาณ": 1,
+                            "ต้นทุน": float(r["ราคา"]),
+                            "overhead_percent": 0,
+                            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
 
-            new_df = pd.DataFrame(rows)
-            old_df = load_data()
+                new_df = pd.DataFrame(rows)
+                old_df = load_data()
 
-            final_df = pd.concat([old_df, new_df], ignore_index=True)
-            save_data(final_df)
+                final_df = pd.concat([old_df, new_df], ignore_index=True)
+                save_data(final_df)
 
-            st.success(f"🎉 บันทึกวัสดุ '{material_name}' เรียบร้อยแล้ว")
-            st.rerun()
+                st.success(f"🎉 บันทึกวัสดุ '{material_name}' เรียบร้อยแล้ว")
+                st.rerun()
 
-    except Exception as e:
-        st.error(f"เกิดข้อผิดพลาด: {e}")
+        except Exception as e:
+            st.error(f"เกิดข้อผิดพลาด: {e}")
 
-elif uploaded_file and not material_name:
-    st.warning("กรุณากรอกชื่อวัสดุก่อน")
-
+    elif uploaded_file and not material_name:
+        st.warning("กรุณากรอกชื่อวัสดุก่อน")
 
 
 
