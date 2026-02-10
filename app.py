@@ -274,13 +274,13 @@ if menu == "Dashboard":
     # -------------------------
     # Mapping ชื่อคอลัมน์ที่แสดง ↔ ชื่อวัสดุในระบบ
     # -------------------------
-    material_map = {
-        "ราคาเม็ดพลาสติก": "เม็ดพลาสติก PET",
-        "ราคาฝ้าย": "ผ้าฝ้าย (Cotton)",
-        "ราคาอะลูมิเนียม": "อะลูมิเนียม",
-        "ค่าแรง": "ค่าแรง",
-        "ราคาน้ำมัน": "น้ำมันดีเซล"
-    }
+    materials = (
+        df["วัสดุ"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
 
     # -------------------------
     # สร้างตาราง เดือน x วัสดุ
@@ -290,18 +290,19 @@ if menu == "Dashboard":
     for month in range(1, 13):
         row = {"เดือน": month}
 
-        for col_name, material in material_map.items():
+        for mat in materials:
             price = df[
                 (df["ปี"] == sel_year) &
                 (df["เดือน"] == month) &
-                (df["วัสดุ"] == material)
+                (df["วัสดุ"] == mat)
             ]["ราคา/หน่วย"].mean()
 
-            row[col_name] = "-" if pd.isna(price) else round(price, 2)
+            row[mat] = "-" if pd.isna(price) else round(price, 2)
 
         table.append(row)
 
     matrix_df = pd.DataFrame(table)
+
 
     st.subheader(f"📅 ตารางราคาวัสดุ ปี {sel_year}")
     st.dataframe(matrix_df, use_container_width=True)
@@ -312,11 +313,12 @@ if menu == "Dashboard":
     st.markdown("### 📌 สถานะข้อมูลรายวัสดุ")
 
     summary = {
-        col: f"{matrix_df[col].ne('-').sum()}/12 เดือน"
-        for col in material_map.keys()
+        mat: f"{matrix_df[mat].ne('-').sum()}/12 เดือน"
+        for mat in materials
     }
 
     st.json(summary)
+
 
 
 elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
