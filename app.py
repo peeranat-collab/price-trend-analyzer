@@ -369,25 +369,31 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     # =========================
     st.subheader("3️⃣ โครงสร้างต้นทุน (%)")
 
-    materials = [
-        "เม็ดพลาสติก PET",
-        "อะลูมิเนียม",
-        "ผ้าฝ้าย (Cotton)",
-        "ค่าแรง",
-        "น้ำมันดีเซล"
-    ]
+    # ดึงวัสดุทั้งหมดที่มีข้อมูลจริง (ยกเว้นอื่นๆ)
+    all_materials = (
+        df["วัสดุ"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    # เรียงชื่อให้สวย
+    all_materials = sorted(all_materials)
 
     weights = {}
-    cols = st.columns(len(materials) + 1)
 
-    for i, mat in enumerate(materials):
-        with cols[i]:
+    # แบ่ง column อัตโนมัติ
+    cols = st.columns(min(6, len(all_materials) + 1))
+
+    for i, mat in enumerate(all_materials):
+        with cols[i % len(cols)]:
             weights[mat] = st.number_input(
                 mat,
                 min_value=0.0,
                 max_value=100.0,
                 step=1.0,
-                value=0.0
+                value=0.0,
+                key=f"weight_{mat}"
             )
 
     used_weight = sum(weights.values())
@@ -400,12 +406,16 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
             disabled=True
         )
 
-    st.caption(f"รวมสัดส่วนวัสดุที่วิเคราะห์ = {used_weight:.1f}% | อื่นๆ = {other_weight:.1f}%")
+    st.caption(
+        f"รวมสัดส่วนวัสดุที่วิเคราะห์ = {used_weight:.1f}% | "
+        f"อื่นๆ = {other_weight:.1f}%"
+    )
 
     if used_weight == 0:
         st.warning("กรุณาใส่สัดส่วนอย่างน้อย 1 วัสดุ")
         st.stop()
-
+    
+    
     # =========================
     # 4️⃣ คำนวณ YoY Impact
     # =========================
