@@ -488,6 +488,16 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     import matplotlib.pyplot as plt
     
+    from matplotlib import font_manager, rcParams
+    import os
+
+    font_path = "fonts/NotoSansThai-Regular.ttf"
+
+    if os.path.exists(font_path):
+        font_manager.fontManager.addfont(font_path)
+        rcParams["font.family"] = "Noto Sans Thai"
+
+    
 #-----------------------------------------------------
     st.subheader("📈 ปัจจัยที่มีผลต่อราคา (ย้อนหลัง 3 ปี)")
 #--------------------------------------------------
