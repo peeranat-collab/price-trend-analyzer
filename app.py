@@ -290,6 +290,32 @@ if menu == "Dashboard":
 
     df = load_data()
 
+    if "unit" not in df.columns:
+    df["unit"] = ""
+
+    materials = (
+        df["วัสดุ"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    material_unit_map = (
+        df.groupby("วัสดุ")["unit"]
+        .first()
+        .to_dict()
+    )
+
+
+    display_materials = []
+
+    for mat in materials:
+        unit = material_unit_map.get(mat, "")
+        col_name = f"{mat} ({unit})" if unit else mat
+        display_materials.append((mat, col_name))
+
+
+
     if len(df) == 0:
         st.warning("ยังไม่มีข้อมูลในระบบ")
         st.stop()
@@ -326,16 +352,17 @@ if menu == "Dashboard":
     for month in range(1, 13):
         row = {"เดือน": month}
 
-        for mat in materials:
+        for mat, col_name in display_materials:
             price = df[
                 (df["ปี"] == sel_year) &
                 (df["เดือน"] == month) &
                 (df["วัสดุ"] == mat)
             ]["ราคา/หน่วย"].mean()
 
-            row[mat] = "-" if pd.isna(price) else round(price, 2)
+            row[col_name] = "-" if pd.isna(price) else round(price, 2)
 
         table.append(row)
+
 
     matrix_df = pd.DataFrame(table)
 
