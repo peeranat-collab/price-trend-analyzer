@@ -501,9 +501,11 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     st.dataframe(result_df, use_container_width=True)
 
     import matplotlib.pyplot as plt
-
+    
+#-----------------------------------------------------
     st.subheader("📈 ปัจจัยที่มีผลต่อราคา (ย้อนหลัง 3 ปี)")
-
+#--------------------------------------------------
+    
     years_3 = [sel_year - 2, sel_year - 1, sel_year]
     year_labels = [str(y + 543) for y in years_3]  # พ.ศ.
 
@@ -519,7 +521,7 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
             for y in years_3:
                 price = get_price(df, mat, y, sel_month)
-                plot_df.append({
+                prices.append({
                     "ปี": f"{sel_month}/{y+543}",
                     "วัสดุ": mat,
                     "ราคา": price
