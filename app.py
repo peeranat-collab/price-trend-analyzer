@@ -483,45 +483,73 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     st.dataframe(result_df, use_container_width=True)
 
 
+    import matplotlib.pyplot as plt
+
     st.subheader("📈 ปัจจัยที่มีผลต่อราคา (ย้อนหลัง 3 ปี)")
 
-# -------------------------
-# เตรียมปีที่ใช้แสดง (3 ปี)
-# -------------------------
     years_3 = [sel_year - 2, sel_year - 1, sel_year]
+    year_labels = [str(y + 543) for y in years_3]  # พ.ศ.
 
-# วัสดุที่ผู้ใช้เลือกจริง (% > 0)
-    used_materials = [
-        mat for mat, w in weights.items() if w > 0
-    ]
+    used_materials = [m for m, w in weights.items() if w > 0]
 
     if len(used_materials) == 0:
         st.info("ยังไม่ได้เลือกวัสดุสำหรับแสดงกราฟ")
     else:
-        plot_df = []
+        fig, ax = plt.subplots(figsize=(9, 4.5))
 
         for mat in used_materials:
+            prices = []
+
             for y in years_3:
                 price = get_price(df, mat, y, sel_month)
+                prices.append(price)
 
-                plot_df.append({
-                    "ปี": f"ธ.ค. {str(y + 543)[-2:]}" if sel_month == 12 else f"{sel_month}/{y+543}",
-                    "วัสดุ": mat,
-                    "ราคา": price
-                })
+        # เส้น + วงกลม
+            ax.plot(
+                year_labels,
+                prices,
+                marker="o",
+                linewidth=2,
+                label=mat
+            )
 
-        plot_df = pd.DataFrame(plot_df)
+            # 🔴 Highlight ปีล่าสุด
+            if prices[-1] is not None:
+                ax.scatter(
+                    year_labels[-1],
+                    prices[-1],
+                    s=80,
+                    zorder=5
+                )
+                ax.text(
+                    year_labels[-1],
+                    prices[-1],
+                    f"{prices[-1]:,.1f}",
+                    fontsize=9,
+                    ha="left",
+                    va="bottom"
+                )
 
-        # -------------------------
-    # Pivot เพื่อทำกราฟ
     # -------------------------
-        pivot_df = plot_df.pivot(
-            index="ปี",
-            columns="วัสดุ",
-            values="ราคา"
+    # จัด layout กราฟ
+    # -------------------------
+        ax.set_title("ปัจจัยที่มีผลต่อราคา", fontsize=14)
+        ax.set_xlabel("ปี")
+        ax.set_ylabel("ราคา")
+
+        ax.grid(axis="y", alpha=0.3)
+
+        # Legend ตรงกลางด้านล่าง
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.15),
+            ncol=len(used_materials),
+            frameon=False
         )
 
-        st.line_chart(pivot_df)
+        plt.tight_layout()
+        st.pyplot(fig)
+
 
     
     # =========================
