@@ -2,12 +2,12 @@ import yfinance as yf
 import pandas as pd
 
 USD_TO_THB = 33
-SHORT_TON_TO_GRAM = 907_185  # 907.185 kg
+SHORT_TON_TO_KG = 907.185
 
 def get_hrc_with_priority(mode="current"):
     """
     mode = current | last36
-    return = บาท / กรัม
+    return = บาท / กิโลกรัม
     """
 
     ticker = yf.Ticker("HRC=F")
@@ -28,12 +28,12 @@ def get_hrc_with_priority(mode="current"):
                 raise ValueError("Invalid price")
 
             price_thb_per_short_ton = avg_price_usd * USD_TO_THB
-            price_thb_per_gram = price_thb_per_short_ton / SHORT_TON_TO_GRAM
+            price_thb_per_kg = price_thb_per_short_ton / SHORT_TON_TO_KG
 
             return {
                 "status": "success",
                 "mode": "current",
-                "value": round(price_thb_per_gram, 6)
+                "value": round(price_thb_per_kg, 4)
             }
 
         # =========================
@@ -56,9 +56,9 @@ def get_hrc_with_priority(mode="current"):
                     continue
 
                 price_thb_per_short_ton = v * USD_TO_THB
-                price_thb_per_gram = price_thb_per_short_ton / SHORT_TON_TO_GRAM
+                price_thb_per_kg = price_thb_per_short_ton / SHORT_TON_TO_KG
 
-                result[str(k)] = round(price_thb_per_gram, 6)
+                result[str(k)] = round(price_thb_per_kg, 4)
 
             if len(result) == 0:
                 raise ValueError("No valid monthly data")
