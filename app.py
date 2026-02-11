@@ -39,13 +39,19 @@ from reportlab.lib import colors
 import matplotlib.pyplot as plt
 
 # --------------------------------------------------------------
+from matplotlib import font_manager, rcParams
+
 font_path = "fonts/THSarabunNew.ttf"
 
 if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
     font_prop = font_manager.FontProperties(fname=font_path)
+
     rcParams["font.family"] = font_prop.get_name()
+    rcParams["axes.unicode_minus"] = False
 else:
-    rcParams["font.family"] = "DejaVu Sans"  # fallback
+    font_prop = font_manager.FontProperties()
+
 # --------------------------------------------------------------------
 
 st.set_page_config(page_title="Cost Intelligence System", layout="wide")
@@ -532,9 +538,18 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
                 zorder=5
             )
 
-    ax.set_title("ปัจจัยที่มีผลต่อราคา", fontsize=14)
-    ax.set_xlabel("ปี")
-    ax.set_ylabel("ราคา")
+    ax.set_title("ปัจจัยที่มีผลต่อราคา", fontproperties=font_prop)
+    ax.set_xlabel("ปี", fontproperties=font_prop)
+    ax.set_ylabel("ราคา", fontproperties=font_prop)
+
+    for label in ax.get_xticklabels():
+        label.set_fontproperties(font_prop)
+
+    for label in ax.get_yticklabels():
+        label.set_fontproperties(font_prop)
+
+    ax.legend(prop=font_prop)
+
 
     ax.grid(axis="y", alpha=0.3)
 
