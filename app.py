@@ -521,11 +521,7 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
             for y in years_3:
                 price = get_price(df, mat, y, sel_month)
-                prices.append({
-                    "ปี": f"{sel_month}/{y+543}",
-                    "วัสดุ": mat,
-                    "ราคา": price
-                })
+                prices.append(price)
                 
 
             ax.plot(
