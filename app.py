@@ -38,21 +38,7 @@ from reportlab.lib import colors
 # Plot
 import matplotlib.pyplot as plt
 
-# --------------------------------------------------------------
-from matplotlib import font_manager, rcParams
 
-font_path = "fonts/THSarabunNew.ttf"
-
-if os.path.exists(font_path):
-    font_manager.fontManager.addfont(font_path)
-    font_prop = font_manager.FontProperties(fname=font_path)
-
-    rcParams["font.family"] = font_prop.get_name()
-    rcParams["axes.unicode_minus"] = False
-else:
-    font_prop = font_manager.FontProperties()
-
-# --------------------------------------------------------------------
 
 st.set_page_config(page_title="Cost Intelligence System", layout="wide")
 
