@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import font_manager, rcParams
 from sklearn.linear_model import LinearRegression
 from scrapers.aluminum_yahoo import (
     get_aluminum_monthly_avg_thb,
@@ -35,6 +37,16 @@ from reportlab.lib import colors
 
 # Plot
 import matplotlib.pyplot as plt
+
+--------------------------------------------------------------
+font_path = "fonts/THSarabunNew.ttf"
+
+if os.path.exists(font_path):
+    font_prop = font_manager.FontProperties(fname=font_path)
+    rcParams["font.family"] = font_prop.get_name()
+else:
+    rcParams["font.family"] = "DejaVu Sans"  # fallback
+--------------------------------------------------------------------
 
 st.set_page_config(page_title="Cost Intelligence System", layout="wide")
 
@@ -521,14 +533,7 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
                     s=80,
                     zorder=5
                 )
-                ax.text(
-                    year_labels[-1],
-                    prices[-1],
-                    f"{prices[-1]:,.1f}",
-                    fontsize=9,
-                    ha="left",
-                    va="bottom"
-                )
+                
 
     # -------------------------
     # จัด layout กราฟ
