@@ -38,6 +38,18 @@ from reportlab.lib import colors
 # Plot
 import matplotlib.pyplot as plt
 
+from matplotlib import font_manager, rcParams
+import os
+
+font_path = "NotoSansThai-VariableFont_wdth,wght.ttf"
+
+if os.path.exists(font_path):
+    font_manager.fontManager.addfont(font_path)
+    rcParams["font.family"] = "Noto Sans Thai"
+
+rcParams["axes.unicode_minus"] = False
+
+
 
 
 st.set_page_config(page_title="Cost Intelligence System", layout="wide")
