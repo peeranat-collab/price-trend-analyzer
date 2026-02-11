@@ -18,11 +18,10 @@ def get_hrc_with_priority(mode="current"):
 
             avg_price_usd = hist["Close"].mean()
             price_thb = avg_price_usd * USD_TO_THB
+            avg_thb_per_kt = price_thb *907 /1000000
 
-            return {
-                "mode": "current",
-                "value": round(price_thb, 2)
-            }
+            return round(avg_thb_per_kt, 2)
+
 
         elif mode == "last36":
             hist = ticker.history(period="36mo")
