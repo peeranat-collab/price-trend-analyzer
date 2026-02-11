@@ -33,8 +33,10 @@ def fetch_aluminum_month(year: int, month: int):
         if pd.isna(avg_usd):
             raise AluminumScraperError("ข้อมูลราคาไม่สมบูรณ์")
 
-        avg_thb = float(avg_usd) * USD_TO_THB
-        return round(avg_thb, 2)
+        avg_thb_per_ton = float(avg_usd) * USD_TO_THB
+        avg_thb_per_kt = avg_thb_per_ton / 1000 
+        return round(avg_thb_per_kt, 2)
+
 
     except Exception as e:
         raise AluminumScraperError(str(e))
