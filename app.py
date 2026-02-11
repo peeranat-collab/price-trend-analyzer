@@ -519,19 +519,18 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
             )
 
 
-    ax.set_title("ปัจจัยที่มีผลต่อราคา")
+        ax.set_title("ปัจจัยที่มีผลต่อราคา")
+        ax.grid(axis="y", alpha=0.3)
 
-    ax.grid(axis="y", alpha=0.3)
+        ax.legend(
+            loc="upper center",
+            bbox_to_anchor=(0.5, -0.15),
+            ncol=len(used_materials),
+            frameon=False
+        )
 
-    ax.legend(
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.15),
-        ncol=len(used_materials),
-        frameon=False
-    )
-
-    plt.tight_layout()
-    st.pyplot(fig)
+        plt.tight_layout()
+        st.pyplot(fig)
 
 
 
