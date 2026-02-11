@@ -290,9 +290,17 @@ if menu == "Dashboard":
 
     df = load_data()
 
+    # ✅ Fallback กันไฟล์เก่า
     if "unit" not in df.columns:
-    df["unit"] = ""
+        df["unit"] = ""
 
+    if len(df) == 0:
+        st.warning("ยังไม่มีข้อมูลในระบบ")
+        st.stop()
+
+    # -------------------------
+    # Materials
+    # -------------------------
     materials = (
         df["วัสดุ"]
         .dropna()
@@ -306,22 +314,14 @@ if menu == "Dashboard":
         .to_dict()
     )
 
-
     display_materials = []
-
     for mat in materials:
         unit = material_unit_map.get(mat, "")
         col_name = f"{mat} ({unit})" if unit else mat
         display_materials.append((mat, col_name))
 
-
-
-    if len(df) == 0:
-        st.warning("ยังไม่มีข้อมูลในระบบ")
-        st.stop()
-
     # -------------------------
-    # เลือกปี (default = ปีปัจจุบัน)
+    # เลือกปี
     # -------------------------
     years = sorted(df["ปี"].unique(), reverse=True)
     current_year = datetime.now().year
@@ -334,18 +334,7 @@ if menu == "Dashboard":
     )
 
     # -------------------------
-    # Mapping ชื่อคอลัมน์ที่แสดง ↔ ชื่อวัสดุในระบบ
-    # -------------------------
-    materials = (
-        df["วัสดุ"]
-        .dropna()
-        .unique()
-        .tolist()
-    )
-
-
-    # -------------------------
-    # สร้างตาราง เดือน x วัสดุ
+    # ตาราง เดือน x วัสดุ
     # -------------------------
     table = []
 
@@ -363,24 +352,23 @@ if menu == "Dashboard":
 
         table.append(row)
 
-
     matrix_df = pd.DataFrame(table)
-
 
     st.subheader(f"📅 ตารางราคาวัสดุ ปี {sel_year}")
     st.dataframe(matrix_df, use_container_width=True)
 
     # -------------------------
-    # สรุปความครบของข้อมูล
+    # Summary ✅ FIXED
     # -------------------------
     st.markdown("### 📌 สถานะข้อมูลรายวัสดุ")
 
     summary = {
-        mat: f"{matrix_df[mat].ne('-').sum()}/12 เดือน"
-        for mat in materials
+        col_name: f"{matrix_df[col_name].ne('-').sum()}/12 เดือน"
+        for _, col_name in display_materials
     }
 
     st.json(summary)
+
 
 
 
