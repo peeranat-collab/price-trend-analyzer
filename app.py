@@ -515,32 +515,31 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     else:
         fig, ax = plt.subplots(figsize=(9, 4.5))
 
-    for mat in used_materials:
-        prices = []
+        for mat in used_materials:
+            prices = []
 
-        for y in years_3:
-            price = get_price(df, mat, y, sel_month)
-            prices.append(price)
+            for y in years_3:
+                price = get_price(df, mat, y, sel_month)
+                prices.append(price)
 
-        ax.plot(
-            year_labels,
-            prices,
-            marker="o",
-            linewidth=2,
-            label=mat
-        )
-
-        if prices[-1] is not None:
-            ax.scatter(
-                year_labels[-1],
-                prices[-1],
-                s=80,
-                zorder=5
+            ax.plot(
+                year_labels,
+                prices,
+                marker="o",
+                linewidth=2,
+                label=mat
             )
 
+            if prices[-1] is not None:
+                ax.scatter(
+                    year_labels[-1],
+                    prices[-1],
+                    s=80,
+                    zorder=5
+                )
+
     ax.set_title("ปัจจัยที่มีผลต่อราคา", fontproperties=font_prop)
-    ax.set_xlabel("ปี", fontproperties=font_prop)
-    ax.set_ylabel("ราคา", fontproperties=font_prop)
+
 
     for label in ax.get_xticklabels():
         label.set_fontproperties(font_prop)
