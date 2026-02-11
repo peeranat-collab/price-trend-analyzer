@@ -509,51 +509,45 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     else:
         fig, ax = plt.subplots(figsize=(9, 4.5))
 
-        for mat in used_materials:
-            prices = []
+    for mat in used_materials:
+        prices = []
 
-            for y in years_3:
-                price = get_price(df, mat, y, sel_month)
-                prices.append(price)
+        for y in years_3:
+            price = get_price(df, mat, y, sel_month)
+            prices.append(price)
 
-        # เส้น + วงกลม
-            ax.plot(
-                year_labels,
-                prices,
-                marker="o",
-                linewidth=2,
-                label=mat
-            )
-
-            # 🔴 Highlight ปีล่าสุด
-            if prices[-1] is not None:
-                ax.scatter(
-                    year_labels[-1],
-                    prices[-1],
-                    s=80,
-                    zorder=5
-                )
-                
-
-    # -------------------------
-    # จัด layout กราฟ
-    # -------------------------
-        ax.set_title("ปัจจัยที่มีผลต่อราคา", fontsize=14)
-        ax.set_xlabel("ปี")
-        ax.set_ylabel("ราคา")
-
-        ax.grid(axis="y", alpha=0.3)
-
-        # Legend ตรงกลางด้านล่าง
-        ax.legend(
-            loc="upper center",
-            bbox_to_anchor=(0.5, -0.15),
-            ncol=len(used_materials),
-            frameon=False
+        ax.plot(
+            year_labels,
+            prices,
+            marker="o",
+            linewidth=2,
+            label=mat
         )
 
-        plt.tight_layout()
-        st.pyplot(fig)
+        if prices[-1] is not None:
+            ax.scatter(
+                year_labels[-1],
+                prices[-1],
+                s=80,
+                zorder=5
+            )
+
+    ax.set_title("ปัจจัยที่มีผลต่อราคา", fontsize=14)
+    ax.set_xlabel("ปี")
+    ax.set_ylabel("ราคา")
+
+    ax.grid(axis="y", alpha=0.3)
+
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=len(used_materials),
+        frameon=False
+    )
+
+    plt.tight_layout()
+    st.pyplot(fig)
+
 
 
     
