@@ -540,16 +540,6 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
 
     ax.set_title("ปัจจัยที่มีผลต่อราคา", fontproperties=font_prop)
 
-
-    for label in ax.get_xticklabels():
-        label.set_fontproperties(font_prop)
-
-    for label in ax.get_yticklabels():
-        label.set_fontproperties(font_prop)
-
-    ax.legend(prop=font_prop)
-
-
     ax.grid(axis="y", alpha=0.3)
 
     ax.legend(
