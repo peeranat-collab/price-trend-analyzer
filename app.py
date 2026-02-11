@@ -500,7 +500,6 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
     result_df = pd.DataFrame(rows)
     st.dataframe(result_df, use_container_width=True)
 
-
     import matplotlib.pyplot as plt
 
     st.subheader("📈 ปัจจัยที่มีผลต่อราคา (ย้อนหลัง 3 ปี)")
@@ -538,7 +537,7 @@ elif menu == "วิเคราะห์ต้นทุน (YoY Impact)":
                     zorder=5
                 )
 
-    ax.set_title("ปัจจัยที่มีผลต่อราคา", fontproperties=font_prop)
+    ax.set_title("ปัจจัยที่มีผลต่อราคา")
 
     ax.grid(axis="y", alpha=0.3)
 
